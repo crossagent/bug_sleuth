@@ -1,0 +1,108 @@
+import asyncio
+import os
+import subprocess
+import logging
+from typing import Optional
+
+async def run_bash_command(command: str, cwd: Optional[str] = None) -> dict:
+    """
+    Run a bash command or shell command.
+    
+    Args:
+        command: The command to run.
+        cwd: Optional working directory.
+        
+    Returns:
+        dict: Result with keys 'status', 'output', 'error', 'exit_code'.
+    """
+    if not command:
+        return {"status": "error", "error": "Command is required."}
+
+    # FIX: Default CWD to PROJECT_ROOT if not specified, otherwise agent commands in /app fail to find code in /project_root
+    if not cwd:
+        cwd = os.environ.get("PROJECT_ROOT", os.getcwd())
+
+    logging.info(f"Executing command: {command} (cwd={cwd})")
+
+    try:
+        # Determine shell based on OS
+        # Windows ADK Environment often uses ProactorEventLoop which might not support asyncio.create_subprocess_shell elegantly.
+        # Fallback to synchronous subprocess.run in a thread executor.
+        
+        def run_sync_cmd():
+            if os.name == 'nt':
+                # Force UTF-8 encoding for output decoding if possible, though cmd.exe is tricky.
+                return subprocess.run(
+                    command,
+                    shell=True,
+                    capture_output=True,
+                    cwd=cwd,
+                    text=False # Capture bytes to decode safely with 'replace'
+                )
+            else:
+                 return subprocess.run(
+                    command,
+                    shell=True,
+                    capture_output=True,
+                    executable="/bin/bash",
+                    cwd=cwd,
+                    text=False
+                )
+
+        # Run blocking IO in a separate thread
+        completed_process = await asyncio.to_thread(run_sync_cmd)
+        
+        # Helper to decode with fallback
+        def decode_output(data: bytes) -> str:
+            if not data:
+                return ""
+            try:
+                # 1. Try system locale (e.g. cp936 on CN Windows)
+                import locale
+                return data.decode(locale.getpreferredencoding(), errors='strict')
+            except UnicodeDecodeError:
+                try:
+                    # 2. Try UTF-8
+                    return data.decode('utf-8', errors='strict')
+                except UnicodeDecodeError:
+                    # 3. Fallback to system locale with replace
+                    return data.decode(locale.getpreferredencoding(), errors='replace')
+
+        output_str = decode_output(completed_process.stdout).strip()
+        error_str = decode_output(completed_process.stderr).strip()
+        
+        exit_code = completed_process.returncode
+        
+        if exit_code == 0:
+            logging.info(f"Command success: {command}")
+            summary_msg = f"Executed '{command}' successfully (rc=0)."
+            return {
+                "status": "success",
+                "output": output_str,
+                "error": error_str,
+                "exit_code": 0,
+                "summary": summary_msg
+            }
+        else:
+             # Create a concise summary including the first line of error/output for context
+             # This avoids the need for valid_llm_agent to append large blocks
+             short_err = error_str.split('\n')[0] if error_str else output_str.split('\n')[0]
+             if len(short_err) > 100: short_err = short_err[:100] + "..."
+             
+             summary_msg = f"Command '{command}' failed (rc={exit_code}). Reason: {short_err}"
+             return {
+                "status": "error",
+                "output": output_str,
+                "error": error_str,
+                "exit_code": exit_code,
+                "summary": summary_msg
+            }
+
+    except Exception as e:
+        error_msg = f"Execution failed: {str(e)}"
+        logging.error(error_msg, exc_info=True) # Log full traceback
+        return {
+            "status": "error", 
+            "error": error_msg,
+            "summary": "Command execution failed internally."
+        }

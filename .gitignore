@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# ADK
+**/.adk/
+**/.env
+
+# Logs
+*.log
+
+# Database & Artifacts
+adk_data/
+
+# Test Data
+eval/test_data/

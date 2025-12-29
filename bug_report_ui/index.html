@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugSleuth Reporter</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --background-dark: #1e1e1e;
+            --surface-dark: #2d2d2d;
+            --text-light: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-dark);
+            color: var(--text-light);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: var(--surface-dark);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        textarea,
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background-color: #333;
+            color: white;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        #response-area {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #222;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            display: none;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-bottom: 1px solid #444;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>BugSleuth Reporter</h1>
+
+        <div class="form-group">
+            <label for="user-id">User ID:</label>
+            <input type="text" id="user-id" value="test_user" />
+        </div>
+
+        <div class="form-group">
+            <label for="description">Bug Description:</label>
+            <textarea id="description" rows="4"
+                placeholder="Describe the issue... e.g. 'Game crashed after loading map'"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="log-upload">上传日志 (Logs) <span
+                    style="font-weight:normal; color:#888; font-size:0.9em;">(Optional)</span>:</label>
+            <div id="log-drop-area" class="drop-area"
+                style="border: 2px dashed #444; padding: 20px; text-align: center; margin-bottom: 10px; cursor: pointer;">
+                <span id="log-file-msg">拖拽文件到这里或点击上传日志</span>
+                <input type="file" id="log-upload" accept=".txt,.log" multiple style="display: none;" />
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="screenshot-upload">上传截图 (Screenshots) <span
+                    style="font-weight:normal; color:#888; font-size:0.9em;">(Optional)</span>:</label>
+            <div id="screenshot-drop-area" class="drop-area"
+                style="border: 2px dashed #2196F3; padding: 20px; text-align: center; cursor: pointer;">
+                <span id="screenshot-file-msg">拖拽图片到这里或点击上传截图</span>
+                <input type="file" id="screenshot-upload" accept=".png,.jpg,.jpeg,.gif,.bmp,.webp" multiple
+                    style="display: none;" />
+            </div>
+        </div>
+
+        <button id="submit-btn" onclick="submitBugReport()">Submit Report</button>
+
+        <div id="response-area"></div>
+    </div>
+
+    <script>
+        // Helper: Validate File Type
+        function validateFile(file, type) {
+            const fileName = file.name.toLowerCase();
+            if (type === 'log') {
+                if (!fileName.endsWith('.log') && !fileName.endsWith('.txt')) {
+                    alert("日志文件只能是 .log 或 .txt 格式！");
+                    return false;
+                }
+            } else if (type === 'image') {
+                const validExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'];
+                const isValid = validExtensions.some(ext => fileName.endsWith(ext));
+                if (!isValid) {
+                    alert("截图只能是常见的图片格式 (.png, .jpg, etc.)！");
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Setup Drag and Drop
+        function setupDropArea(dropAreaId, fileInputId, msgId) {
+            const dropArea = document.getElementById(dropAreaId);
+            const fileInput = document.getElementById(fileInputId);
+            const fileMsg = document.getElementById(msgId);
+            const fileType = dropAreaId.includes('log') ? 'log' : 'image';
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight(e) {
+                dropArea.style.borderColor = '#4CAF50';
+                dropArea.style.backgroundColor = '#383838';
+            }
+
+            function unhighlight(e) {
+                dropArea.style.borderColor = dropAreaId.includes('screenshot') ? '#2196F3' : '#444';
+                dropArea.style.backgroundColor = 'transparent';
+            }
+
+            dropArea.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0 && validateFile(files[0], fileType)) {
+                    fileInput.files = files;
+                    updateFileMsg(files);
+                }
+            }
+
+            fileInput.addEventListener('change', function () {
+                if (this.files.length > 0) {
+                    if (!validateFile(this.files[0], fileType)) {
+                        this.value = ""; // Clear input
+                        updateFileMsg([]);
+                        return;
+                    }
+                }
+                updateFileMsg(this.files);
+            });
+
+            function updateFileMsg(files) {
+                if (files.length > 0) {
+                    if (files.length === 1) {
+                        fileMsg.innerText = "已选择: " + files[0].name;
+                    } else {
+                        fileMsg.innerText = `已选择: ${files.length} 个文件`;
+                    }
+                } else {
+                    fileMsg.innerText = dropAreaId.includes('log') ? "拖拽文件到这里或点击上传日志" : "拖拽图片到这里或点击上传截图";
+                }
+            }
+
+            dropArea.addEventListener('click', () => fileInput.click());
+        }
+
+        setupDropArea('log-drop-area', 'log-upload', 'log-file-msg');
+        setupDropArea('screenshot-drop-area', 'screenshot-upload', 'screenshot-file-msg');
+
+        function generateUUID() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                try {
+                    return crypto.randomUUID();
+                } catch (e) {
+                    console.warn("crypto.randomUUID failed, falling back", e);
+                }
+            }
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Read file as Base64 (Enhanced for ADK Artifacts)
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    // Result format: "data:image/png;base64,iVBORw0KGgoAAA..."
+                    const dataUrl = e.target.result;
+                    // Split to get just the base64 string
+                    const base64Data = dataUrl.split(',')[1];
+                    const mimeType = dataUrl.substring(dataUrl.indexOf(':') + 1, dataUrl.indexOf(';'));
+                    resolve({
+                        data: base64Data,
+                        mimeType: mimeType || file.type || "application/octet-stream",
+                        displayName: file.name
+                    });
+                };
+                reader.onerror = (e) => reject(e);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function submitBugReport() {
+            const btn = document.getElementById('submit-btn');
+            const responseArea = document.getElementById('response-area');
+
+            // 1. Update UI Immediately (Feedback)
+            btn.disabled = true;
+            btn.innerText = "正在处理...";
+            responseArea.style.display = 'block';
+            responseArea.innerText = "正在准备提交...";
+
+            try {
+                const description = document.getElementById('description').value;
+                const userId = document.getElementById('user-id').value;
+                const appId = "bug_analyze_agent";
+
+                // 2. Prepare Data & Pre-calculate Filenames
+                const sessionId = "bugsleuth-" + generateUUID();
+                const logInput = document.getElementById('log-upload');
+                const screenshotInput = document.getElementById('screenshot-upload');
+
+                let logFilenames = [];
+                if (logInput.files) {
+                    for (let i = 0; i < logInput.files.length; i++) logFilenames.push(logInput.files[i].name);
+                }
+
+                let screenshotFilenames = [];
+                if (screenshotInput.files) {
+                    for (let i = 0; i < screenshotInput.files.length; i++) screenshotFilenames.push(screenshotInput.files[i].name);
+                }
+
+                console.log("Starting Session:", sessionId);
+                responseArea.innerText += "\nSession ID: " + sessionId;
+
+                // 3. Create Session (Native API) - Empty Initial State
+                // POST /apps/{app_name}/users/{user_id}/sessions
+                responseArea.innerText += "\n初始化会话 (Native API)...";
+                const createRes = await fetch(`/apps/${appId}/users/${userId}/sessions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        state: {} // Start with empty state
+                    })
+                });
+
+                if (!createRes.ok) {
+                    throw new Error("Failed to create session: " + createRes.statusText);
+                }
+
+                // Internal function to upload artifact
+                async function uploadFileNative(file, appId, userId, sessionId) {
+                    try {
+                        const fileInfo = await readFileAsBase64(file);
+                        const payload = {
+                            filename: file.name,
+                            artifact: {
+                                inline_data: {
+                                    data: fileInfo.data,
+                                    mime_type: fileInfo.mimeType
+                                }
+                            }
+                        };
+                        const res = await fetch(`/apps/${appId}/users/${userId}/sessions/${sessionId}/artifacts`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!res.ok) throw new Error("Upload failed: " + res.statusText);
+                        return file.name;
+                    } catch (e) {
+                        throw new Error(`File ${file.name} upload error: ${e.message}`);
+                    }
+                }
+
+                // 5. Upload Artifacts (Sequence)
+                let logArtifacts = [];
+                // logInput is already declared at top of function
+                if (logInput.files && logInput.files.length > 0) {
+                    responseArea.innerText += `\n正在上传 ${logInput.files.length} 个日志文件...`;
+                    for (const file of logInput.files) {
+                        const artifactName = await uploadFileNative(file, appId, userId, sessionId);
+                        logArtifacts.push(artifactName);
+                        responseArea.innerText += `\n  日志上传成功: ${artifactName}`;
+                    }
+                } else {
+                    responseArea.innerText += "\n(跳过日志上传)";
+                }
+
+                let screenshotArtifacts = [];
+                // screenshotInput is already declared
+                if (screenshotInput.files && screenshotInput.files.length > 0) {
+                    responseArea.innerText += `\n正在上传 ${screenshotInput.files.length} 张截图...`;
+                    for (const file of screenshotInput.files) {
+                        const artifactName = await uploadFileNative(file, appId, userId, sessionId);
+                        screenshotArtifacts.push(artifactName);
+                        responseArea.innerText += `\n  截图上传成功: ${artifactName}`;
+                    }
+                }
+
+                // 6. Update Session State (Native API - Patch)
+                // PATCH /apps/{app_name}/users/{user_id}/sessions/{session_id}
+                responseArea.innerText += "\n正在更新工单状态 (Event Sourcing)...";
+
+                let stateUpdates = {};
+                if (logArtifacts.length > 0) stateUpdates["clientLogUrls"] = logArtifacts;
+                if (screenshotArtifacts.length > 0) stateUpdates["clientScreenshotUrls"] = screenshotArtifacts;
+                if (description) stateUpdates["bug_user_description"] = description;
+                if (logArtifacts.length === 0) stateUpdates["no_logs_provided"] = true;
+
+                if (Object.keys(stateUpdates).length > 0) {
+                    const patchRes = await fetch(`/apps/${appId}/users/${userId}/sessions/${sessionId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ state_delta: stateUpdates })
+                    });
+
+                    if (!patchRes.ok) throw new Error("Session state update failed: " + patchRes.statusText);
+                }
+
+                // Success!
+                const debugUrl = `${window.location.origin}/dev-ui/?app=${encodeURIComponent(appId)}&userId=${encodeURIComponent(userId)}&session=${encodeURIComponent(sessionId)}`;
+                responseArea.innerHTML = "";
+                responseArea.innerHTML += `<div style="margin-top:20px; padding:20px; background:#2E3338; border-left: 5px solid #4CAF50; border-radius:4px;">
+                    <h2 style="margin-top:0; color:#4CAF50;">✅ 工单提交成功 (Patch Flow)</h2>
+                    <p>工单已创建，文件已上传，状态已同步。</p>
+                    <div style="background:#1e1e1e; padding:10px; margin:10px 0; border-radius:4px; font-family:monospace;">
+                        Ticket ID: <span style="color:#FFA726">${sessionId}</span>
+                    </div>
+                    <p><strong>开发人员入口:</strong></p>
+                    <a href="${debugUrl}" target="_blank" style="display:inline-block; padding:10px 20px; background:#4CAF50; color:white; text-decoration:none; border-radius:4px; font-weight:bold;">
+                        🔍 进入 ADK 控制台分析 (Investigate)
+                    </a>
+                </div>`;
+
+            } catch (error) {
+                console.error(error);
+                responseArea.innerText += `\n❌ Error: ${error.message}`;
+                alert("提交失败: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "提交工单 (Submit Report)";
+            }
+        }
+    </script>
+
+</body>
+
+</html>
