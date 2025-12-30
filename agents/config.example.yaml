@@ -1,0 +1,12 @@
+# Agent Configuration
+product_description: "Your Product Description Here (e.g. MOBA Game)"
+max_autonomous_steps: 20
+
+# Repository Configuration
+repositories:
+  - name: "Game Main Repository"
+    path: "${PROJECT_ROOT}/Client"
+    description: "Main Unity Project. Includes Client, Server, and Common logic."
+  - name: "Server Framework"
+    path: "${PROJECT_ROOT}/ServerFramework"
+    description: "C# Server Framework. Contains core infrastructure: Network, Entity System, and Service framework."
