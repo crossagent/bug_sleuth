@@ -223,14 +223,12 @@ class VisualLlmAgent(LlmAgent):
                             # Unknown type, skip
                             continue
 
-                        if result_str:
+                        if result_str and event.content:
                             full_msg = f"{icon} {result_str}"
-                            full_result_list.append(full_msg)
+                            # Standardize: Add a newline for markdown block separation if needed by UI, 
+                            # but keeping as separate parts is the key.
+                            event.content.parts.append(types.Part.from_text(text=full_msg))
                             logger.info(f"VisualLlmAgent merged result: {full_msg}")
-                    
-                    if full_result_list and event.content:
-                        combined_text = "\n".join(full_result_list)
-                        event.content.parts.append(types.Part.from_text(text=combined_text))
                     
                     yield event
                     continue

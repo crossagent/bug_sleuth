@@ -18,9 +18,18 @@ async def run_bash_command(command: str, cwd: Optional[str] = None) -> dict:
     if not command:
         return {"status": "error", "error": "Command is required."}
 
-    # FIX: Default CWD to PROJECT_ROOT if not specified, otherwise agent commands in /app fail to find code in /project_root
+    # FIX: Default CWD to Primary Repository if not specified
     if not cwd:
-        cwd = os.environ.get("PROJECT_ROOT", os.getcwd())
+        import json
+        cwd = os.getcwd() # Fallback
+        try:
+             repos_json = os.environ.get("REPOSITORIES")
+             if repos_json:
+                 repos = json.loads(repos_json)
+                 if repos and "path" in repos[0]:
+                     cwd = repos[0]["path"]
+        except:
+             pass
 
     logging.info(f"Executing command: {command} (cwd={cwd})")
 

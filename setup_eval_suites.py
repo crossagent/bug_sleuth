@@ -47,7 +47,7 @@ def setup_suites():
         try:
             dummy_session_path = f"{suite['path']}/temp_session_input.json"
             with open(dummy_session_path, 'w') as f:
-                log_path = r"e:\soc_team_copilot\soc_bug_scene\eval_cases\test_data\2025-12-19_16-47-18.log"
+                log_path = r"e:\soc_team_copilot\bug_sleuth\eval_cases\test_data\2025-12-19_16-47-18.log"
                 json.dump({
                     "app_name": "bug_analyze_agent", 
                     "user_id": "test_user",

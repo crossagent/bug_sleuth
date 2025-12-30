@@ -1,4 +1,4 @@
-from agents.shared_libraries.state_keys import StateKeys
+from shared_libraries.state_keys import StateKeys
 
 BASE_BUG_INFO_COLLECT_PROMPT = """
 目前已知bug的必须包含的信息有：

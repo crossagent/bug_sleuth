@@ -1,20 +1,63 @@
 import os
-# 2. Startup Check
-PROJECT_ROOT = os.getenv("PROJECT_ROOT")
-print(f"DEBUG: Startup PROJECT_ROOT is: '{PROJECT_ROOT}'")
+import json
+import yaml
+from pathlib import Path
 
+# 2. Startup Check & Configuration Loading
+def load_config():
+    config_path = os.getenv("CONFIG_FILE", "agents/config.yaml")
+    if not os.path.exists(config_path):
+        # Fallback to local if running from agents dir
+        if os.path.exists("config.yaml"):
+             config_path = "config.yaml"
+        else:
+             print(f"WARNING: Config file not found at {config_path}. Using default empty config.")
+             return {}
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f) or {}
+    except Exception as e:
+        raise ValueError(f"Critical Error: Failed to load config file: {e}")
 
+CONFIG = load_config()
 
-if not PROJECT_ROOT:
-    raise ValueError(f"严重错误：未在环境变量中配置 PROJECT_ROOT。")
+# Repositories
+REPO_REGISTRY = CONFIG.get("repositories", [])
+if not REPO_REGISTRY:
+    # Fallback to legacy env var if YAML is empty (optional backward compat)
+    legacy_repos = os.getenv("REPOSITORIES")
+    if legacy_repos:
+        try:
+            REPO_REGISTRY = json.loads(legacy_repos)
+        except:
+             pass
+
+if not REPO_REGISTRY:
+     raise ValueError("Critical Error: No repositories configured in config.yaml or REPOSITORIES env var.")
+
+# Validate paths
+valid_repos = []
+for repo in REPO_REGISTRY:
+    path = repo.get("path")
+    if path and os.path.exists(path):
+        valid_repos.append(repo)
+        print(f"DEBUG: Loaded Repo: {repo.get('name')} -> {path}")
+    else:
+         print(f"WARNING: Repository path not found: {path}")
+
+if not valid_repos:
+     raise ValueError("No valid repositories found in configuration.")
+
+REPO_REGISTRY = valid_repos
 
 # 3. Imports
 from datetime import datetime
 
-from agents.shared_libraries.constants import MODEL, USER_TIMEZONE
+from shared_libraries.constants import MODEL, USER_TIMEZONE
 from google.adk import Agent
 from google.adk.agents.callback_context import CallbackContext
-from agents.shared_libraries import constants
+from shared_libraries import constants
 from google.adk.apps.app import App
 from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.models.llm_response import LlmResponse
@@ -41,12 +84,11 @@ from .tools import (
     deploy_fix_tool
 )
 from .tools.search_code import check_search_tools
-# from agents.shared_libraries.plugin_loader import load_plugin_tools
 
 from google.adk.tools import load_artifacts
 from google.adk.planners import BuiltInPlanner
 from google.genai import types
-from agents.shared_libraries.state_keys import StateKeys, AgentKeys
+from shared_libraries.state_keys import StateKeys, AgentKeys
 
 
 logger = logging.getLogger(__name__)
@@ -65,11 +107,11 @@ async def initialize_and_validate(callback_context: CallbackContext) -> Optional
         types.Content if validation fails (stopping execution).
         None if validation succeeds (continuing execution).
     """
-    # 1. Validate PROJECT_ROOT
-    if not PROJECT_ROOT or not os.path.exists(PROJECT_ROOT):
-        error_msg = f"Critical Error: PROJECT_ROOT is invalid or not found at: {PROJECT_ROOT}"
-        logger.error(error_msg)
-        return types.Content(parts=[types.Part.from_text(text=error_msg)])
+    # 1. Validate Repositories
+    # (Already validated at startup, but good to ensure state is clean)
+    if not REPO_REGISTRY:
+         return types.Content(parts=[types.Part(text="Error: No configured repositories available.")])
+
 
     # 2. Validate Search Tools
     search_error = check_search_tools()
@@ -126,11 +168,10 @@ def check_step_limit(callback_context: CallbackContext, llm_request: LlmRequest)
     current_count = callback_context.state.get(StateKeys.STEP_COUNT, 0) + 1
     callback_context.state[StateKeys.STEP_COUNT] = current_count
     
-    # Get limit from env, default to 30
-    try:
-        step_limit = int(os.environ.get("MAX_AUTONOMOUS_STEPS", 5))
-    except ValueError:
-        step_limit = 30
+    # 4. Step Limit Configuration
+    step_limit = CONFIG.get("max_autonomous_steps")
+    if not step_limit:
+         step_limit = int(os.environ.get("MAX_AUTONOMOUS_STEPS", 5))
 
     if current_count > step_limit:
         logger.warning(f"Autonomous step limit ({step_limit}) reached. Forcing yield to user.")
@@ -176,16 +217,22 @@ def inject_default_values(callback_context: CallbackContext):
     # Inject Current OS
     current_os = f"{platform.system()} {platform.release()}"
     callback_context.state[StateKeys.CURRENT_OS] = current_os
-
-    # Inject Product Type
-    product = os.getenv("PRODUCT", "未配置 (Unknown Product)")
-    callback_context.state[StateKeys.PRODUCT] = product
     
-    # Inject PROJECT_ROOT for prompt
-    callback_context.state["project_root"] = PROJECT_ROOT
+    # Inject Repository Registry (Object)
+    callback_context.state[StateKeys.REPO_REGISTRY] = REPO_REGISTRY
+    
+    # Inject Formatted Repository List (For Prompt)
+    repo_list_str = []
+    for r in REPO_REGISTRY:
+        repo_list_str.append(f"- **{r.get('name')}**: `{r.get('path')}` - {r.get('description', '')}")
+    callback_context.state["repository_list"] = "\n    ".join(repo_list_str)
 
     if not callback_context.state.get(StateKeys.BUG_OCCURRENCE_TIME):
         callback_context.state[StateKeys.BUG_OCCURRENCE_TIME] = cur_date_time
+
+    # Inject Product
+    product_description = CONFIG.get("product_description") or os.getenv("PRODUCT_DESCRIPTION") or "Rust-like Survival Game"
+    callback_context.state[StateKeys.PRODUCT_DESCRIPTION] = product_description
 
     defaults = {
         StateKeys.BUG_USER_DESCRIPTION: "暂无用户描述 (No user description provided)",
@@ -205,24 +252,8 @@ def inject_default_values(callback_context: CallbackContext):
             callback_context.state[key] = value
 
 
-# Load Core Tools
-core_tools = [
-    AgentTool(agent=log_analysis_agent),
-    time_convert_tool, 
-    update_investigation_plan_tool, 
-    read_file_tool,
-    read_code_tool,
-    search_code_tool,
-    run_bash_command,
-    get_git_log_tool,
-    get_git_diff_tool,
-    get_blame_tool,
-    load_artifacts,
-    FunctionTool(
-        deploy_fix_tool,
-        require_confirmation=True
-    )
-]
+from google.adk.agents.llm_agent import LlmAgent
+from shared_libraries.visual_llm_agent import VisualLlmAgent
 
 bug_analyze_agent = VisualLlmAgent(
     name="bug_analyze_agent",
@@ -240,7 +271,23 @@ bug_analyze_agent = VisualLlmAgent(
     before_agent_callback=initialize_and_validate,
     before_model_callback=check_step_limit,
 
-    tools=core_tools,
+    tools=[
+        AgentTool(agent=log_analysis_agent),
+        time_convert_tool, 
+        update_investigation_plan_tool, 
+        read_file_tool,
+        read_code_tool,
+        search_code_tool,
+        run_bash_command,
+        get_git_log_tool,
+        get_git_diff_tool,
+        get_blame_tool,
+        load_artifacts,
+        FunctionTool(
+            deploy_fix_tool,
+            require_confirmation=True
+        )
+    ],
     output_key=AgentKeys.BUG_REASON,
 )
 

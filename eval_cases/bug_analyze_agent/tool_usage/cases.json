@@ -9,15 +9,15 @@
             "conversation_plan": "Verify that the agent uses log analysis tools when checking logs."
         },
         {
-            "starting_prompt": "Please view the first 30 lines of file at 'F:\\soc\\trunk\\Soc\\SocClient\\Assets\\Scripts\\UI\\Window\\UI\\UiLogin\\UiLogin.cs' to check the header. Do NOT read the whole file. Once the tool is called, STOP immediately.",
+            "starting_prompt": "Please view the first 30 lines of file at 'F:\\BugSleuth\\trunk\\Client\\Assets\\Scripts\\UI\\Window\\UI\\UiLogin\\UiLogin.cs' to check the header. Do NOT read the whole file. Once the tool is called, STOP immediately.",
             "conversation_plan": "Verify that the agent uses read_file_tool to read code."
         },
         {
-            "starting_prompt": "Check the git login history for 'F:\\soc\\trunk\\Soc\\SocClient\\Assets\\Scripts\\UI\\Window\\UI\\UiLogin\\UiLogin.cs' specifically. Once the tool is called, STOP immediately. Do not execute any further steps.",
+            "starting_prompt": "Check the git login history for 'F:\\BugSleuth\\trunk\\Client\\Assets\\Scripts\\UI\\Window\\UI\\UiLogin\\UiLogin.cs' specifically. Once the tool is called, STOP immediately. Do not execute any further steps.",
             "conversation_plan": "Verify that the agent uses git tools to check history."
         },
         {
-            "starting_prompt": "Search for 'InitPlayer' in the Client domain (SocClient). Once the tool is called, STOP immediately.",
+            "starting_prompt": "Search for 'InitPlayer' in the Client domain (Client). Once the tool is called, STOP immediately.",
             "conversation_plan": "Verify that the agent uses search_engine_tool with domain='Client'."
         }
     ]

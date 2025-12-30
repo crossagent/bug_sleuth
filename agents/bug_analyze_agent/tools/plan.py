@@ -12,16 +12,10 @@ async def update_investigation_plan_tool(
     Overwrites the 'investigation_plan.md' with the provided Markdown content.
     Use this to create the initial plan or update the status/tasks.
     
-    You should maintain a format like:
-    # Investigation Plan
-    Status: IN_PROGRESS
-    
-    ## Hypothesis
-    ...
-    
+    Format:
     ## Tasks
-    - ✅ Step 1
-    - ⬜ Step 2
+    - [V] Step 1
+    - [_] Step 2
     """
     filename = "investigation_plan.md"
     try:
@@ -43,7 +37,7 @@ async def update_investigation_plan_tool(
         )
         
         # Sync to State for Context Injection
-        from agents.shared_libraries.state_keys import StateKeys
+        from shared_libraries.state_keys import StateKeys
         tool_context.state[StateKeys.CURRENT_INVESTIGATION_PLAN] = content
         
         # Cleanup: Visualization is now handled by prompt instructions (Prompt-Driven).

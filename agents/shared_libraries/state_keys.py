@@ -7,7 +7,6 @@ class StateKeys:
     BUG_DESCRIPTION = "bug_description"
     BUG_USER_DESCRIPTION = "bug_user_description"
     PRODUCT_BRANCH = "productBranch"
-    PRODUCT = "product"
     CLIENT_LOG_URL = "clientLogUrl"
     CLIENT_LOG_URLS = "clientLogUrls"  # LIST
     CLIENT_SCREENSHOT_URLS = "clientScreenshotUrls"  # LIST
@@ -22,6 +21,8 @@ class StateKeys:
     CUR_DATE_TIME = "cur_date_time"
     CUR_TIMESTAMP = "cur_timestamp"
     CURRENT_OS = "current_os"
+    REPO_REGISTRY = "repo_registry"
+    PRODUCT_DESCRIPTION = "product_description"
 
     USER_INTENT = "user_intent"
 

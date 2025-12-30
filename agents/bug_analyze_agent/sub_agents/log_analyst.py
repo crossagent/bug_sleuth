@@ -1,10 +1,8 @@
 from google.adk import Agent
 from google.genai import types
-from google.adk.apps.app import App
-from google.adk.agents.context_cache_config import ContextCacheConfig
-from agents.shared_libraries.constants import MODEL
+
+from shared_libraries.constants import MODEL
 from .tools import search_logs_tool
-from agents.shared_libraries.plugin_loader import load_plugin_tools
 
 instruction = """
 你是一个专业的日志分析专家 (LogAnalysisAgent)。
@@ -21,25 +19,12 @@ instruction = """
 *   始终用中文回答。
 """
 
-# Load Plugin Tools
-plugin_tools = load_plugin_tools("log_analysis_agent")
-
 log_analysis_agent = Agent(
     name="log_analysis_agent",
     model=MODEL,
-    description="Dedicated agent for searching and analyzing application logs.",
+    description="Dedicated agent for searching and analyzing logs. INPUT REQUIREMENT: You MUST provide specific keywords (e.g., error codes, file names), the bug occurrence time (e.g., '2023-10-27 10:00:00'), and the logic logic you want to verify. Do not send vague requests.",
     instruction=instruction,
-    tools=[search_logs_tool] + plugin_tools,
-    # Sub-agents can be simple agents without complex planners usually, unless multi-step analysis is needed.
-    # Default planner is fine.
+    tools=[search_logs_tool],
 )
 
-log_analysis_app = App(
-    name="log_analysis_app",
-    root_agent=log_analysis_agent,
-    context_cache_config=ContextCacheConfig(
-        min_tokens=2048,
-        ttl_seconds=600,
-        cache_intervals=10
-    )
-)
+
