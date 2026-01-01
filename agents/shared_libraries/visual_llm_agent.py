@@ -148,88 +148,64 @@ class VisualLlmAgent(LlmAgent):
 
             # --- 2. Handle Function Responses ---
             try:
-                function_responses = event.get_function_responses()
-                if function_responses:
-                    full_result_list = []
-                    for resp in function_responses:
-                        tool_name = resp.name
-                        response_payload = resp.response
-                        
-                        result_str = ""
-                        icon = "✅"
-
-                        # --- FILTER: User "Only look at results containing brief" ---
-                        
-                        # Exception 1: Plan Tool (Full Text)
-                        if tool_name == "update_investigation_plan_tool":
-                            # Plan tool returns a string typically, or dict?
-                            # Based on plan.py, it returns a STRING.
-                            # But response_payload might be wrapped? LlmAgent unmarshals it.
-                            # Let's handle both.
-                            if isinstance(response_payload, dict):
-                                if "output" in response_payload:
-                                     result_str = str(response_payload["output"])
-                                elif "result" in response_payload:
-                                     result_str = str(response_payload["result"])
-                                else:
-                                     # Fallback: stringify entire dict, but unescape newlines for readability
-                                     result_str = str(response_payload)
-                            else:
-                                 result_str = str(response_payload)
-                            
-                            # CRITICAL FIX: Unescape newlines if mistakenly escaped (e.g. from str(dict))
-                            # But also handle literal \n that might be in the text.
-                            if result_str:
-                                result_str = result_str.replace("\\n", "\n")
-                        
-                        # General Case: Look for 'summary' (brief)
-                        elif isinstance(response_payload, dict):
-                            # [Fix] Check explicit status field common in our tools
-                            is_error = response_payload.get("status") == "error" or response_payload.get("exit_code", 0) != 0
-                            
-                            if is_error:
-                                icon = "❌"
-                                error_detail = response_payload.get("error", "")
-                                summary_text = response_payload.get("summary", "")
-                                
-                                # Simplified Logic: Trust the tool's summary if available.
-                                # Avoid "Double Error" messages which clutter the UI.
-                                if summary_text:
-                                    result_str = summary_text
-                                elif error_detail:
-                                    # Fallback: Truncate very long error details for the chat bubble
-                                    # The full error is still in the function response for the Agent.
-                                    display_err = error_detail if len(error_detail) < 200 else error_detail[:200] + "..."
-                                    result_str = f"Error: {display_err}"
-                                else:
-                                    result_str = "Command failed (Unknown Error)"
-                            
-                            elif "summary" in response_payload:
-                                result_str = response_payload['summary']
-                            else:
-                                # User Request: "Only see results containing brief"
-                                # If no summary/brief, and no error, we SKIP visualization.
-                                continue 
-                        
-                        elif isinstance(response_payload, str):
-                            # If it's a raw string and not plan tool, 
-                            # we assume it's "output" and user wants to skip unless it's brief?
-                            # But we can't detect 'brief' in a string easily.
-                            # For safety, let's skip/hide unless we are sure.
-                            # "Simplify".
-                            continue 
-                        
-                        else:
-                            # Unknown type, skip
-                            continue
-
-                        if result_str and event.content:
-                            full_msg = f"{icon} {result_str}"
-                            # Standardize: Add a newline for markdown block separation if needed by UI, 
-                            # but keeping as separate parts is the key.
-                            event.content.parts.append(types.Part.from_text(text=full_msg))
-                            logger.info(f"VisualLlmAgent merged result: {full_msg}")
+                # We need to reconstruct the parts list to interleave Text after each FunctionResponse
+                if event.content and event.content.parts:
+                    new_parts = []
                     
+                    # Iterate through existing parts
+                    for part in event.content.parts:
+                        new_parts.append(part)
+                        
+                        # Check if this part is a FunctionResponse
+                        # Duck typing check matching get_function_responses implementation
+                        response_part = getattr(part, 'function_response', None)
+                        if response_part:
+                            tool_name = response_part.name
+                            response_payload = response_part.response
+                            
+                            result_str = ""
+                            icon = "✅"
+
+                            # --- Logic to extract visual text (Same as before) ---
+                            if tool_name == "update_investigation_plan_tool":
+                                if isinstance(response_payload, dict):
+                                    if "output" in response_payload:
+                                         result_str = str(response_payload["output"])
+                                    elif "result" in response_payload:
+                                         result_str = str(response_payload["result"])
+                                    else:
+                                         result_str = str(response_payload)
+                                else:
+                                     result_str = str(response_payload)
+                                
+                                if result_str:
+                                    result_str = result_str.replace("\\n", "\n")
+                            
+                            elif isinstance(response_payload, dict):
+                                is_error = response_payload.get("status") == "error" or response_payload.get("exit_code", 0) != 0
+                                if is_error:
+                                    icon = "❌"
+                                    error_detail = response_payload.get("error", "")
+                                    summary_text = response_payload.get("summary", "")
+                                    if summary_text:
+                                        result_str = summary_text
+                                    elif error_detail:
+                                        display_err = error_detail if len(error_detail) < 200 else error_detail[:200] + "..."
+                                        result_str = f"Error: {display_err}"
+                                    else:
+                                        result_str = "Command failed"
+                                elif "summary" in response_payload:
+                                    result_str = response_payload['summary']
+                            
+                            # Construct and INSERT immediately after this part
+                            if result_str:
+                                full_msg = f"{icon} {result_str}"
+                                new_text_part = types.Part.from_text(text=full_msg)
+                                new_parts.append(new_text_part)
+                                logger.info(f"VisualLlmAgent interleaved result: {full_msg[:50]}...")
+
+                    # Replace the event parts with the new interleaved list
+                    event.content.parts = new_parts
                     yield event
                     continue
 
