@@ -33,6 +33,10 @@ class StateKeys:
 
     CURRENT_INVESTIGATION_PLAN = "current_investigation_plan"
     STEP_COUNT = "step_count"
+    
+    # [NEW] Token Tracking Keys
+    TOTAL_SESSION_TOKENS = "total_session_tokens"
+    CURRENT_AUTONOMOUS_TOKENS = "current_autonomous_tokens"
 
 
 class AgentKeys:

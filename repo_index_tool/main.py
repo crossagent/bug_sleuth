@@ -13,7 +13,7 @@ from parser import CodeParser
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger("CodeIndexer")
 
-IGNORE_DIRS = {'.git', '.svn', '.vs', '.soc_agent', 'Library', 'Temp', 'Obj', 'Build', 'Logs'}
+IGNORE_DIRS = {'.git', '.svn', '.vs', '.bug_sleuth_agent', 'Library', 'Temp', 'Obj', 'Build', 'Logs'}
 
 def load_config_repos(config_path):
     """Extracts repository paths from config.yaml."""
@@ -60,7 +60,7 @@ def index_repo(repo_path, rebuild=False):
         return
 
     # Setup DB
-    db_path = os.path.join(repo_path, ".soc_agent", "code_index.db")
+    db_path = os.path.join(repo_path, ".bug_sleuth_agent", "code_index.db")
     if rebuild and os.path.exists(db_path):
         try:
             os.remove(db_path)
@@ -121,7 +121,7 @@ def index_repo(repo_path, rebuild=False):
     logger.info(f"DB Location: {db_path}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Soc Code Indexer")
+    parser = argparse.ArgumentParser(description="Bug Sleuth Code Indexer")
     parser.add_argument("--repo_path", help="Specific repository path to index")
     parser.add_argument("--config", help="Path to config.yaml", default="agents/config.yaml")
     parser.add_argument("--rebuild", action="store_true", help="Force rebuild of database")

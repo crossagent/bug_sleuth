@@ -17,8 +17,8 @@ if not isinstance(numeric_level, int):
     raise ValueError(f"Invalid log level: {loglevel}")
 
 # 2. 获取根 logger，这里我们为您的主包 "soc_bug_scene" 配置 logger
-#    这样所有子模块 (e.g., soc_bug_scene.agent) 都会继承这个配置
-package_logger = logging.getLogger("soc_bug_scene")
+#    这样所有子模块 (e.g., bug_sleuth.agent) 都会继承这个配置
+package_logger = logging.getLogger("bug_sleuth")
 package_logger.setLevel(numeric_level)
 
 # 阻止向根logger传播，避免重复输出

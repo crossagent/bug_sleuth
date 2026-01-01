@@ -5,7 +5,7 @@ import logging
 from typing import List, Dict, Optional
 from google.adk.tools.tool_context import ToolContext
 import yaml
-from google.adk.tools.tool_context import ToolContext
+
 
 # Configure logging
 logger = logging.getLogger("SearchSymbolTool")
@@ -63,7 +63,7 @@ async def search_symbol_tool(
     
     # 2. Query each repo's DB
     for repo_path in repos:
-        db_path = os.path.join(repo_path, ".soc_agent", "code_index.db")
+        db_path = os.path.join(repo_path, ".bug_sleuth_agent", "code_index.db")
         
         if not os.path.exists(db_path):
             logger.warning(f"Index not found for {repo_path}")

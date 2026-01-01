@@ -1,6 +1,6 @@
 # Agent Configuration
 product_description: "Your Product Description Here (e.g. MOBA Game)"
-max_autonomous_steps: 20
+max_autonomous_tokens: 8000
 
 # Repository Configuration
 repositories:

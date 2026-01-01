@@ -57,6 +57,7 @@ from datetime import datetime
 from shared_libraries.constants import MODEL, USER_TIMEZONE
 from google.adk import Agent
 from google.adk.agents.callback_context import CallbackContext
+from google.adk.agents.run_config import RunConfig
 from shared_libraries import constants
 from google.adk.apps.app import App
 from google.adk.agents.context_cache_config import ContextCacheConfig
@@ -95,18 +96,8 @@ logger = logging.getLogger(__name__)
 
 
 async def initialize_and_validate(callback_context: CallbackContext) -> Optional[types.Content]:
-    """Initialize agent context and validate required environment/inputs.
-    
-    Acts as a gatekeeper:
-    1. Validates PROJECT_ROOT existence.
-    2. Validates Search Tools (rg/git/grep).
-    3. Validates clientLogUrl presence.
-    4. Injects default values if validation passes.
-    
-    Returns:
-        types.Content if validation fails (stopping execution).
-        None if validation succeeds (continuing execution).
-    """
+    """在此代理初始化前运行的验证逻辑"""
+    inject_default_values(callback_context)
     # 1. Validate Repositories
     # (Already validated at startup, but good to ensure state is clean)
     if not REPO_REGISTRY:
@@ -154,51 +145,69 @@ async def initialize_and_validate(callback_context: CallbackContext) -> Optional
         else:
              callback_context.state[StateKeys.CURRENT_INVESTIGATION_PLAN] = "当前尚无调查计划 (No plan created yet). Use update_investigation_plan_tool to create one."
     
-    # 5. Initialize Step Counter for Turn Restriction
-    # Used by check_step_limit callback
-    callback_context.state[StateKeys.STEP_COUNT] = 0
+    # 5. Initialize Token Counters (if not present)
+    if StateKeys.TOTAL_SESSION_TOKENS not in callback_context.state:
+        callback_context.state[StateKeys.TOTAL_SESSION_TOKENS] = 0
+    if StateKeys.CURRENT_AUTONOMOUS_TOKENS not in callback_context.state:
+        callback_context.state[StateKeys.CURRENT_AUTONOMOUS_TOKENS] = 0
 
     return None
 
-def check_step_limit(callback_context: CallbackContext, llm_request: LlmRequest) -> Optional[LlmResponse]:
-    """Callback to enforce a strict limit on autonomous steps triggers human intervention."""
-
-
-    # Increment counter
-    current_count = callback_context.state.get(StateKeys.STEP_COUNT, 0) + 1
-    callback_context.state[StateKeys.STEP_COUNT] = current_count
-    
-    # 4. Step Limit Configuration
-    step_limit = CONFIG.get("max_autonomous_steps")
-    if not step_limit:
-         step_limit = int(os.environ.get("MAX_AUTONOMOUS_STEPS", 5))
-
-    if current_count > step_limit:
-        logger.warning(f"Autonomous step limit ({step_limit}) reached. Forcing yield to user.")
+class TokenLimitHandler:
+    @staticmethod
+    def before_model_callback(callback_context: CallbackContext, llm_request: LlmRequest) -> Optional[LlmResponse]:
+        """Checks if token budget is exceeded for the current autonomous loop."""
         
-        # Retrieve current plan for display
-        current_plan = callback_context.state.get(StateKeys.CURRENT_INVESTIGATION_PLAN, "暂无计划内容")
+        current_tokens = callback_context.state.get(StateKeys.CURRENT_AUTONOMOUS_TOKENS, 0)
         
-        # Cleanup: Visualization is now handled by prompt instructions (Prompt-Driven).
-        # No need for manual string replacement here.
-        
-        return LlmResponse(
-            content=types.Content(
-                role="model",
-                parts=[types.Part.from_text(
-                    text=f"🛑 **自主探索暂停 (Autonomous Limit Reached)**\n\n"
-                    f"我已经连续自主思考并执行了 {step_limit} 个步骤。为了确保调查方向符合您的预期，我先暂停一下。\n\n"
-                    f"--- **当前调查计划 (Current Plan)** ---\n\n"
-                    f"{current_plan}\n\n"
-                    f"---------------------------------------\n"
-                    f"请检视上述计划。\n"
-                    f"- 如果方向正确，请指示我 **继续**。\n"
-                    f"- 如果发现偏离，请 **指出问题**，我会立即调整。"
-                )]
+        # Soft Limit Configuration
+        max_tokens = CONFIG.get("max_autonomous_tokens")
+        if not max_tokens:
+             max_tokens = int(os.environ.get("MAX_AUTONOMOUS_TOKENS", 8000))
+
+        if current_tokens > max_tokens:
+            logger.warning(f"Token budget ({max_tokens}) reached. Forcing yield to user.")
+            
+            # Reset Loop Counters for the NEXT run (Auto-Recharge)
+            callback_context.state[StateKeys.CURRENT_AUTONOMOUS_TOKENS] = 0
+            
+            current_plan = callback_context.state.get(StateKeys.CURRENT_INVESTIGATION_PLAN, "暂无计划内容")
+            total_tokens = callback_context.state.get(StateKeys.TOTAL_SESSION_TOKENS, 0)
+
+            return LlmResponse(
+                content=types.Content(
+                    role="model",
+                    parts=[types.Part.from_text(
+                        text=f"🛑 **自主探索暂停 ({current_tokens} Tokens)**\n\n"
+                        f"当前的自主探索已消耗约 **{current_tokens}** Tokens (本次会话总消耗: {total_tokens})。\n"
+                        f"为了确保调查方向符合您的预期，我先暂停一下。\n\n"
+                        f"--- **当前调查计划 (Current Plan)** ---\n\n"
+                        f"{current_plan}\n\n"
+                        f"---------------------------------------\n"
+                        f"请检视上述计划。\n"
+                        f"- 如果方向正确，请指示我 **继续** (预算已自动重置)。\n"
+                        f"- 如果发现偏离，请 **指出问题**，我会立即调整。"
+                    )]
+                )
             )
-        )
-    
-    return None
+        return None
+
+    @staticmethod
+    async def after_model_callback(callback_context: CallbackContext, llm_response: LlmResponse) -> Optional[LlmResponse]:
+        """Tracks token usage from the model response."""
+        if llm_response.usage_metadata:
+             new_tokens = llm_response.usage_metadata.total_token_count
+             
+             # Accumulate
+             callback_context.state[StateKeys.TOTAL_SESSION_TOKENS] = \
+                 callback_context.state.get(StateKeys.TOTAL_SESSION_TOKENS, 0) + new_tokens
+             
+             callback_context.state[StateKeys.CURRENT_AUTONOMOUS_TOKENS] = \
+                 callback_context.state.get(StateKeys.CURRENT_AUTONOMOUS_TOKENS, 0) + new_tokens
+             
+             logger.debug(f"Token Usage Updated: +{new_tokens} -> Limit: {callback_context.state[StateKeys.CURRENT_AUTONOMOUS_TOKENS]}")
+        
+        return None
 
 def inject_default_values(callback_context: CallbackContext):
     """在此代理初始化前设置默认值"""
@@ -269,7 +278,8 @@ bug_analyze_agent = VisualLlmAgent(
         ),
     instruction=prompt.get_prompt(),
     before_agent_callback=initialize_and_validate,
-    before_model_callback=check_step_limit,
+    before_model_callback=TokenLimitHandler.before_model_callback,
+    after_model_callback=TokenLimitHandler.after_model_callback,
 
     tools=[
         AgentTool(agent=log_analysis_agent),

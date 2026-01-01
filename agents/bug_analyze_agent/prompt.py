@@ -119,10 +119,11 @@ def get_prompt()-> str:
             *   **定位范围**：利用 `file_pattern` 参数缩减搜索范围。
                 *   例如：`*.cs` (仅搜C#), `*Battle*` (仅搜战斗相关), `client/*` (仅搜客户端)。
             *   **策略**：构建精准的关键词 (如报错信息、函数名)，并尽量限定文件类型或路径，避免无效的大范围搜索。
-        *   **阅读 (Read)**：
-            *   **代码文件 (`.cs`, `.py`, `.cpp`, `.lua`)**：必须使用 `read_code_tool`。它会读取完整文件，确保上下文完整。
-            *   **非代码文件 (Log, Config, Txt)**：可以使用 `read_file_tool`，支持读取片段 (`start_line`, `end_line`) 以节省 Token。
-        *   **Git溯源**：使用 `get_git_log_tool` 查看变更历史。
+        *   **阅读 (Read/Check)**：
+            *   **文件读取 (Reading)**：统一使用 `read_file_tool`。
+                *   **代码文件**：通常建议直接读取关键部分，或者分段读取。
+                *   **非代码文件**：支持读取片段 (`start_line`, `end_line`) 以节省 Token。
+            *   **Git溯源**：使用 `get_git_log_tool` 查看变更历史。
         *   **分工**：这是你的核心职责，请亲自执行，不要外包。
 
     3.  **通用能力**：
