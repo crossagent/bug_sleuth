@@ -123,7 +123,7 @@ def index_repo(repo_path, rebuild=False):
 def main():
     parser = argparse.ArgumentParser(description="Bug Sleuth Code Indexer")
     parser.add_argument("--repo_path", help="Specific repository path to index")
-    parser.add_argument("--config", help="Path to config.yaml", default="agents/config.yaml")
+    parser.add_argument("--config", help="Path to config.yaml", default="bug_sleuth/config.yaml")
     parser.add_argument("--rebuild", action="store_true", help="Force rebuild of database")
     
     args = parser.parse_args()

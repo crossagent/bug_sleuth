@@ -14,7 +14,7 @@ def run_adk_cmd(cmd_list):
         return False
 
 def setup_suites():
-    agent_path = "agents/bug_analyze_agent"
+    agent_path = "bug_sleuth/bug_analyze_agent"
     base_eval_path = "eval_cases/bug_analyze_agent"
 
     suites = [

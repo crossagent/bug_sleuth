@@ -8,15 +8,15 @@ from dotenv import load_dotenv
 # 1. Setup Environment & Path
 # Ensure we can import 'agents' module
 PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "agents")) # For shared_libraries
+# sys.path.insert(0, str(PROJECT_ROOT / "agents")) # Removed: bug_sleuth is now a package
 sys.path.insert(0, str(PROJECT_ROOT)) # For runner_test modules
 
 # Load Env (for API Keys)
-load_dotenv(PROJECT_ROOT / "agents" / ".env")
+load_dotenv(PROJECT_ROOT / "bug_sleuth" / ".env")
 
 from runner_test.client import AdkSimulationClient
 try:
-    from agents.bug_analyze_agent.agent import bug_analyze_agent
+    from bug_sleuth.bug_analyze_agent.agent import bug_analyze_agent
 except ImportError as e:
     print(f"Error importing agent: {e}")
     sys.exit(1)
