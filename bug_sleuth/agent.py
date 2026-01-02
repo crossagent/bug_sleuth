@@ -14,6 +14,7 @@ from .bug_reproduce_steps_agent.agent import bug_reproduce_steps_agent
 from .bug_report_agent.agent import bug_report_agent
 from .bug_base_info_collect_agent.agent import bug_base_info_collect_agent
 import bug_sleuth.services
+from bug_sleuth.shared_libraries import constants
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +40,7 @@ async def before_agent_callback(callback_context: CallbackContext) -> Optional[t
     """
     Callback function to be executed before each agent runs.
     """
-    """
-    Callback function to be executed before each agent runs.
-    """
+    
     state = callback_context.state
     if not state.get("session_initialized"):
         # First interaction check
@@ -53,6 +52,7 @@ async def before_agent_callback(callback_context: CallbackContext) -> Optional[t
 # --- 4. Instantiate Root Agent (Global) ---
 agent = LlmAgent(
     name="bug_scene_agent",
+    model=constants.MODEL,
     instruction=ROOT_AGENT_PROMPT,
     sub_agents=[
         bug_base_info_collect_agent,
