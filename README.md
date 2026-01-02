@@ -89,43 +89,51 @@ flowchart LR
 
 ### 3.2 Bridge Agent Implementation (Private Project Integration)
 
-Create a file named `bridge_agent.py` in your project's `agents/` directory:
+For private projects, we recommend using a dedicated `server.py` script to launch the agent. This allows you to set environment variables programmatically and debug easily.
 
+**Directory Structure:**
+```
+my_project/
+├── agents/
+│   └── bridge_agent.py   # Imports bug_sleuth.agent
+├── skills/               # Your private skills
+└── debug_server.py       # Startup script
+```
+
+**1. Create `agents/bridge_agent.py`:**
 ```python
+# agents/bridge_agent.py
+import os
+
+# Ensure SKILL_PATH is set before importing bug_sleuth
+# (Optional: can also be set in debug_server.py)
+os.environ["SKILL_PATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "../skills"))
+
+from bug_sleuth import agent
+```
+
+**2. Create `debug_server.py`:**
+```python
+# debug_server.py
 import os
 import uvicorn
 from google.adk.cli.fast_api import get_fast_api_app
 
-# 1. Configure the environment
-# Point this to your local directory containing SKILL.md and tool.py files
-os.environ["SKILL_PATH"] = os.path.abspath("../skills")
-
-# 2. Import the agent
-# Note: Importing bug_sleuth will automatically load skills from SKILL_PATH
-from bug_sleuth import agent
+# Point to the directory containing bridge_agent.py
+AGENTS_DIR = os.path.join(os.path.dirname(__file__), "agents")
 
 if __name__ == "__main__":
-    # 3. Create ADK App
-    # The 'agent' variable imported above is a valid LlmAgent instance
     app = get_fast_api_app(
-        agents_dir=".", # Scan current directory for 'agent' or 'root_agent'
+        agents_dir=AGENTS_DIR,
         host="0.0.0.0",
         port=9000
     )
     uvicorn.run(app)
 ```
 
-**Key Concepts:**
-*   **Direct Exposure**: The `bug_sleuth` package directly exposes the `agent` instance.
-*   **Environment Configuration**: `SKILL_PATH` must be set *before* importing `bug_sleuth` (or set globally in the OS/Dockerfile) to ensure plugins are loaded during initialization.
-
-### 3.3 Run with ADK CLI
-
-If your `bridge_agent.py` is in `./agents`:
-
+**Run:**
 ```bash
-adk web ./agents
+python debug_server.py
 ```
 
-Ensure `SKILL_PATH` is set in your environment variables if running via CLI.
 
