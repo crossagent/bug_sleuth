@@ -17,14 +17,9 @@ import bug_sleuth.services
 
 logger = logging.getLogger(__name__)
 
-# --- Configuration via Environment Variables ---
-SKILL_PATH = os.getenv("SKILL_PATH")
-TEST_MODE = os.getenv('TEST_MODE', 'false').lower() == 'true'
-
 # --- 1. Load Extensions (Services & Skills) ---
-# This is executed immediately on module import
-if SKILL_PATH:
-    bug_sleuth.services.load_extensions(SKILL_PATH)
+# Extensions must be loaded/configured by the entry point (e.g. bridge_agent.py) *before* this module is imported.
+pass
 
 # Retrieve injected assets for bug_analyze_agent
 analyze_agent_tools = bug_sleuth.services.get_loaded_tools("bug_analyze_agent")

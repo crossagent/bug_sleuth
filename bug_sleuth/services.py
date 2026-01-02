@@ -65,3 +65,13 @@ def get_instruction_suffix(agent_name: str) -> str:
     if _SKILL_LOADER:
         return _SKILL_LOADER.get_instruction_suffix_for_agent(agent_name)
     return ""
+
+# --- Auto-Initialization ---
+# If SKILL_PATH is set in the environment, automatically attempt to load extensions.
+# This ensures services are initialized just by importing this module.
+_env_skill_path = os.getenv("SKILL_PATH")
+if _env_skill_path:
+    # Avoid double loading if imported multiple times (handled by python module caching anyway)
+    # But logging it is useful
+    if not _SKILL_LOADER:
+        load_extensions(_env_skill_path)
