@@ -1,7 +1,80 @@
-from bug_sleuth.entrypoints import create_app, before_agent_callback
+import os
+import logging
+from typing import Optional
+from google.adk.agents.llm_agent import LlmAgent
+# Note: Use LlmAgent for instantiation, but 'from google.adk import Agent' for sub-agents is fine if they prefer it.
+from google.adk.apps.app import App
+from google.adk.agents.context_cache_config import ContextCacheConfig
+from google.adk.agents.callback_context import CallbackContext
+from google.genai import types
 
-# Default instantiation for ADK Web Debug & Tests
-app = create_app()
+from .prompt import ROOT_AGENT_PROMPT
+from .bug_analyze_agent.agent import create_bug_analyze_agent
+from .bug_reproduce_steps_agent.agent import bug_reproduce_steps_agent
+from .bug_report_agent.agent import bug_report_agent
+from .bug_base_info_collect_agent.agent import bug_base_info_collect_agent
+import bug_sleuth.services
 
-# Expose root agent for backward compatibility
-root_agent = app.root_agent
+logger = logging.getLogger(__name__)
+
+# --- Configuration via Environment Variables ---
+SKILL_PATH = os.getenv("SKILL_PATH")
+TEST_MODE = os.getenv('TEST_MODE', 'false').lower() == 'true'
+
+# --- 1. Load Extensions (Services & Skills) ---
+# This is executed immediately on module import
+if SKILL_PATH:
+    bug_sleuth.services.load_extensions(SKILL_PATH)
+
+# Retrieve injected assets for bug_analyze_agent
+analyze_agent_tools = bug_sleuth.services.get_loaded_tools("bug_analyze_agent")
+analyze_agent_instructions = bug_sleuth.services.get_instruction_suffix("bug_analyze_agent")
+
+if analyze_agent_tools:
+    logger.info(f"Injected {len(analyze_agent_tools)} tools into bug_analyze_agent.")
+
+# --- 2. Create Sub-Agents ---
+analyze_agent_instance = create_bug_analyze_agent(
+    extra_tools=analyze_agent_tools,
+    instruction_suffix=analyze_agent_instructions
+)
+
+# --- 3. Callback Definition ---
+async def before_agent_callback(callback_context: CallbackContext) -> Optional[types.Content]:
+    """
+    Callback function to be executed before each agent runs.
+    """
+    if TEST_MODE:
+        return None
+
+    state = callback_context.state
+    if not state.get("session_initialized"):
+        # First interaction check
+        if state.get("deviceInfo") is not None:
+              state["session_initialized"] = True
+              
+    return None
+
+# --- 4. Instantiate Root Agent (Global) ---
+agent = LlmAgent(
+    name="bug_scene_agent",
+    instruction=ROOT_AGENT_PROMPT,
+    sub_agents=[
+        bug_base_info_collect_agent,
+        analyze_agent_instance,
+        bug_report_agent,
+        bug_reproduce_steps_agent,
+    ],
+    before_agent_callback=before_agent_callback
+)
+
+# --- 5. Instantiate App (Global) ---
+app = App(
+    name="bug_scene_app",
+    root_agent=agent,
+    context_cache_config=ContextCacheConfig(
+        min_tokens=2048,
+        ttl_seconds=600,
+        cache_intervals=10,
+    )
+)

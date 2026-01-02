@@ -1,4 +1,4 @@
-from google.adk.agents import Agent
+from google.adk import Agent
 from . import prompt
 from bug_sleuth.shared_libraries import constants
 from google.adk.agents.callback_context import CallbackContext

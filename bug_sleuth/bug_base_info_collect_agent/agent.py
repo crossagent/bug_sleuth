@@ -1,4 +1,4 @@
-from google.adk.agents import Agent
+from google.adk import Agent
 from . import prompt
 from bug_sleuth.shared_libraries import constants
 from google.adk.agents.callback_context import CallbackContext
@@ -7,8 +7,7 @@ import json
 import logging
 from pydantic import BaseModel, Field
 from typing import Optional
-from bug_reproduce_steps_agent.agent import bug_reproduce_steps_agent
-from pydantic import BaseModel, Field
+
 from google.genai import types
 from bug_sleuth.shared_libraries.state_keys import StateKeys
 from datetime import datetime

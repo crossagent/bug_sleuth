@@ -87,4 +87,45 @@ flowchart LR
 
 ## 快速开始
 
-（待补充具体启动命令）
+### 3.2 Bridge Agent Implementation (Private Project Integration)
+
+Create a file named `bridge_agent.py` in your project's `agents/` directory:
+
+```python
+import os
+import uvicorn
+from google.adk.cli.fast_api import get_fast_api_app
+
+# 1. Configure the environment
+# Point this to your local directory containing SKILL.md and tool.py files
+os.environ["SKILL_PATH"] = os.path.abspath("../skills")
+
+# 2. Import the agent
+# Note: Importing bug_sleuth will automatically load skills from SKILL_PATH
+from bug_sleuth import agent
+
+if __name__ == "__main__":
+    # 3. Create ADK App
+    # The 'agent' variable imported above is a valid LlmAgent instance
+    app = get_fast_api_app(
+        agents_dir=".", # Scan current directory for 'agent' or 'root_agent'
+        host="0.0.0.0",
+        port=9000
+    )
+    uvicorn.run(app)
+```
+
+**Key Concepts:**
+*   **Direct Exposure**: The `bug_sleuth` package directly exposes the `agent` instance.
+*   **Environment Configuration**: `SKILL_PATH` must be set *before* importing `bug_sleuth` (or set globally in the OS/Dockerfile) to ensure plugins are loaded during initialization.
+
+### 3.3 Run with ADK CLI
+
+If your `bridge_agent.py` is in `./agents`:
+
+```bash
+adk web ./agents
+```
+
+Ensure `SKILL_PATH` is set in your environment variables if running via CLI.
+
