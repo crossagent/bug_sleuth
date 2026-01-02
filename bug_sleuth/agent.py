@@ -39,9 +39,9 @@ async def before_agent_callback(callback_context: CallbackContext) -> Optional[t
     """
     Callback function to be executed before each agent runs.
     """
-    if TEST_MODE:
-        return None
-
+    """
+    Callback function to be executed before each agent runs.
+    """
     state = callback_context.state
     if not state.get("session_initialized"):
         # First interaction check
