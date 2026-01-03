@@ -17,3 +17,5 @@ eval/test_data/
 
 # Environment
 .venv/
+
+git_hooks/
