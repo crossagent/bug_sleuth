@@ -9,6 +9,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from typing import Optional, List
+from google.adk.tools import BaseTool
+
 bug_report_agent = Agent(
     name="bug_report_agent",
     model=MODEL,
@@ -19,3 +22,5 @@ bug_report_agent = Agent(
     output_key="report_bug_info",
     tools=[tools.submit_bug_report]
 )
+
+

@@ -249,8 +249,24 @@ def inject_default_values(callback_context: CallbackContext):
 from google.adk.agents.llm_agent import LlmAgent
 from bug_sleuth.shared_libraries.visual_llm_agent import VisualLlmAgent
 
-def create_bug_analyze_agent(extra_tools: Optional[list] = None, instruction_suffix: str = ""):
-    base_tools = [
+bug_analyze_agent = VisualLlmAgent(
+    name="bug_analyze_agent",
+    model=MODEL,
+    description=(
+        "Agent to analyze the bug cause systematically via hypothesis and verification."
+    ),
+    planner=BuiltInPlanner(
+          thinking_config=types.ThinkingConfig(
+              include_thoughts=False,      # capture intermediate reasoning
+              thinking_budget=1024        # tokens allocated for planning
+          )
+        ),
+    instruction=prompt.get_prompt(),
+    before_agent_callback=initialize_and_validate,
+    before_model_callback=TokenLimitHandler.before_model_callback,
+    after_model_callback=TokenLimitHandler.after_model_callback,
+
+    tools=[
         AgentTool(agent=log_analysis_agent),
         time_convert_tool, 
         update_investigation_plan_tool, 
@@ -266,33 +282,9 @@ def create_bug_analyze_agent(extra_tools: Optional[list] = None, instruction_suf
             deploy_fix_tool,
             require_confirmation=True
         )
-    ]
-    
-    if extra_tools:
-        base_tools.extend(extra_tools)
-
-    return VisualLlmAgent(
-        name="bug_analyze_agent",
-        model=MODEL,
-        description=(
-            "Agent to analyze the bug cause systematically via hypothesis and verification."
-        ),
-        planner=BuiltInPlanner(
-              thinking_config=types.ThinkingConfig(
-                  include_thoughts=False,      # capture intermediate reasoning
-                  thinking_budget=1024        # tokens allocated for planning
-              )
-            ),
-        instruction=prompt.get_prompt() + (instruction_suffix or ""),
-        before_agent_callback=initialize_and_validate,
-        before_model_callback=TokenLimitHandler.before_model_callback,
-        after_model_callback=TokenLimitHandler.after_model_callback,
-    
-        tools=base_tools,
-        output_key=AgentKeys.BUG_REASON,
-    )
-
-bug_analyze_agent = create_bug_analyze_agent()
+    ],
+    output_key=AgentKeys.BUG_REASON,
+)
 
 app = App(
     name="bug_analyze_app",

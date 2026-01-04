@@ -9,13 +9,14 @@ from google.adk.agents.callback_context import CallbackContext
 from google.genai import types
 
 from .prompt import ROOT_AGENT_PROMPT
-from .bug_analyze_agent.agent import create_bug_analyze_agent
+from .bug_analyze_agent.agent import bug_analyze_agent
 
 from .bug_report_agent.agent import bug_report_agent
 from .tools import update_bug_info_tool
 from datetime import datetime
 import bug_sleuth.services
 from bug_sleuth.skill_loader import SkillLoader
+from bug_sleuth.extensions import RootAgentExtension, BugReportExtension
 from bug_sleuth.shared_libraries import constants
 from bug_sleuth.shared_libraries.state_keys import StateKeys
 
@@ -26,21 +27,38 @@ logger = logging.getLogger(__name__)
 
 skill_loader = None
 skill_path = os.getenv("SKILL_PATH")
-analyze_agent_tools = []
+root_extensions = []
+report_extensions = []
 
 if skill_path and os.path.exists(skill_path):
     logger.info(f"Initializing Skill System from: {skill_path}")
     skill_loader = SkillLoader(skill_path)
-    skill_loader.load_skills()
-    analyze_agent_tools = skill_loader.get_tools_for_agent("bug_analyze_agent")
+    # Define which interfaces we care about
+    targets = [RootAgentExtension, BugReportExtension]
+    skill_loader.load_extensions(targets)
     
-if analyze_agent_tools:
-    logger.info(f"Injected {len(analyze_agent_tools)} tools into bug_analyze_agent.")
+    # Retrieve instantiated extensions
+    root_extensions = skill_loader.get_extensions_by_type(RootAgentExtension)
+    report_extensions = skill_loader.get_extensions_by_type(BugReportExtension)
+    
+if root_extensions:
+    logger.info(f"Injected {len(root_extensions)} extensions into Root Agent.")
+
+if report_extensions:
+    logger.info(f"Injected {len(report_extensions)} extensions into Bug Report Agent.")
 
 # --- 2. Create Sub-Agents ---
-analyze_agent_instance = create_bug_analyze_agent(
-    extra_tools=analyze_agent_tools
-)
+# Inject Report Extensions into the Bug Report Agent
+# Since bug_report_agent is a singleton instance, we extend its tools list in-place.
+if report_extensions:
+    for ext in report_extensions:
+        # Check if ADK Agent exposes 'tools' list directly (it usually does)
+        # We append to the existing tools list.
+        if hasattr(bug_report_agent, "tools"):
+            # LlmAgent tools can be mixed BaseTool/BaseToolset.
+            bug_report_agent.tools.append(ext)
+        else:
+            logger.warning("Could not inject extensions: bug_report_agent has no 'tools' attribute.")
 
 # --- 3. Callback Definition ---
 async def before_agent_callback(callback_context: CallbackContext) -> Optional[types.Content]:
@@ -66,10 +84,10 @@ agent = LlmAgent(
     model=constants.MODEL,
     instruction=ROOT_AGENT_PROMPT,
     sub_agents=[
-        analyze_agent_instance,
+        bug_analyze_agent,
         bug_report_agent,
     ],
-    tools=[update_bug_info_tool],
+    tools=[update_bug_info_tool] + root_extensions,
     before_agent_callback=before_agent_callback
 )
 

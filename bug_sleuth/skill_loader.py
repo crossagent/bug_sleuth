@@ -1,118 +1,75 @@
 import os
-import yaml
-import glob
-import logging
+import sys
+import uuid
 import importlib.util
-from typing import List, Dict, Any, Optional
-from google.adk.tools import FunctionTool
-from dataclasses import dataclass
+import importlib.machinery
+import logging
+from typing import List, Optional, Type, Dict, Any
+from google.adk.tools import FunctionTool, BaseTool
+from google.adk.tools.base_toolset import BaseToolset
+import yaml
 
 logger = logging.getLogger(__name__)
-
-@dataclass
-class LoadedSkill:
-    name: str
-    target_agent: str
-    tools: List[FunctionTool]
 
 class SkillLoader:
     def __init__(self, skill_path: str):
         self.skill_path = skill_path
-        self.skills: List[LoadedSkill] = []
-        
-    def load_skills(self) -> List[LoadedSkill]:
-        """Scans the skill_path and loads all valid skills."""
-        if not self.skill_path or not os.path.exists(self.skill_path):
-            logger.warning(f"Skill path not found: {self.skill_path}")
-            return []
+        # Store loaded extension instances by their class type
+        # Key: The BaseToolset subclass type (interface)
+        # Value: List of instantiated objects implementing that interface
+        self.loaded_extensions: Dict[Type[BaseToolset], List[BaseToolset]] = {}
 
-        # Find all directories containing SKILL.md
-        skill_dirs = glob.glob(os.path.join(self.skill_path, "*", "SKILL.md"))
-        
-        for md_path in skill_dirs:
-            skill_dir = os.path.dirname(md_path)
-            try:
-                skill = self._load_single_skill(skill_dir, md_path)
-                if skill:
-                    self.skills.append(skill)
-            except Exception as e:
-                logger.error(f"Failed to load skill from {skill_dir}: {e}")
-                
-        return self.skills
+    def load_extensions(self, target_interfaces: List[Type[BaseToolset]]) -> None:
+        """
+        Scans and imports modules, finding instances of the specified target interfaces.
+        """
+        if not os.path.exists(self.skill_path):
+            logger.warning(f"Skill path does not exist: {self.skill_path}")
+            return
 
-    def _load_single_skill(self, skill_dir: str, md_path: str) -> Optional[LoadedSkill]:
-        # 1. Parse Metadata from SKILL.md
-        with open(md_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-            
-        metadata = {}
-        
-        # Simple YAML Frontmatter parser
-        if content.startswith("---"):
-            try:
-                parts = content.split("---", 2)
-                if len(parts) >= 2:
-                     yaml_text = parts[1]
-                     metadata = yaml.safe_load(yaml_text) or {}
-            except Exception as e:
-                logger.warning(f"Error parsing YAML in {md_path}: {e}")
+        # Initialize storage for targeted types
+        for interface in target_interfaces:
+            if interface not in self.loaded_extensions:
+                self.loaded_extensions[interface] = []
 
-        skill_name = metadata.get("name", os.path.basename(skill_dir))
-        target_agent = metadata.get("target_agent", "bug_analyze_agent") # Default target
-        
-        # 2. Load Tools from tool.py
-        tools = []
-        tool_py = os.path.join(skill_dir, "tool.py")
-        if os.path.exists(tool_py):
-            tools = self._load_tools_from_module(tool_py, skill_name)
+        # Recursively search for .py files
+        for root, dirs, files in os.walk(self.skill_path):
+             for file in files:
+                if file.endswith(".py") and file != "__init__.py":
+                    module_path = os.path.join(root, file)
+                    self._load_module_and_extract(module_path, target_interfaces)
 
-        logger.info(f"Loaded skill '{skill_name}' for agent '{target_agent}' with {len(tools)} tools.")
-        
-        return LoadedSkill(
-            name=skill_name,
-            target_agent=target_agent,
-            tools=tools
-        )
-
-    def _load_tools_from_module(self, module_path: str, skill_name: str) -> List[FunctionTool]:
-        spec = importlib.util.spec_from_file_location(f"skills.{skill_name}", module_path)
-        if not spec or not spec.loader:
-            return []
-        
-        module = importlib.util.module_from_spec(spec)
-        sys_modules_key = f"bug_sleuth_skills_{skill_name}"
-        # Prevent module collision by strictly naming
-        
+    def _load_module_and_extract(self, module_path: str, target_interfaces: List[Type[BaseToolset]]):
+        module_name = f"skill_module_{uuid.uuid4().hex}"
         try:
+            # 1. Load Module
+            loader = importlib.machinery.SourceFileLoader(module_name, module_path)
+            spec = importlib.util.spec_from_loader(loader.name, loader)
+            if not spec or not spec.loader:
+                return
+            module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-        except Exception as e:
-            logger.error(f"Error executing tool module {module_path}: {e}")
-            return []
-            
-        found_tools = []
-        # Validation Logic: strict check using ADK types
-        for name, obj in vars(module).items():
-            if name.startswith("_"):
-                continue
-                
-            # Accept explicitly defined FunctionTool objects
-            if isinstance(obj, FunctionTool):
-                found_tools.append(obj)
-            # Decorator usually returns a FunctionTool-like object or the wrapper
-            # We assume our @tool decorator returns FunctionTool
-            
-            # Reject bare functions (User Requirement)
-            # Note: We can't easily distinguish a bare function from an internal helper unless we enforce @tool
-            # So we ONLY accept FunctionTool objects.
-            
-        return found_tools
 
-    def get_tools_for_agent(self, agent_name: str) -> List[FunctionTool]:
-        """Returns aggregated tools for a specific agent."""
-        all_tools = []
-        for skill in self.skills:
-            if skill.target_agent == agent_name:
-                all_tools.extend(skill.tools)
-        return all_tools
+            # 2. Inspect Module Content
+            for name in dir(module):
+                obj = getattr(module, name)
+                
+                # Check against all registered interfaces
+                for interface in target_interfaces:
+                    # We look for INSTANCES of the interface (e.g. instantiated toolsets)
+                    # Note: We skip the interface definition itself if it happens to be imported
+                    if isinstance(obj, interface):
+                        logger.info(f"Loaded extension '{name}' implementing {interface.__name__} from {module_path}")
+                        self.loaded_extensions[interface].append(obj)
+                        
+        except Exception as e:
+            logger.error(f"Failed to load module {module_path}: {e}")
+
+    def get_extensions_by_type(self, interface_type: Type[BaseToolset]) -> List[BaseToolset]:
+        """
+        Retrieve all loaded extensions that implement the specified interface.
+        """
+        return self.loaded_extensions.get(interface_type, [])
+
 
 
