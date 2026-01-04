@@ -1,1 +1,0 @@
-from .agent import bug_base_info_collect_agent

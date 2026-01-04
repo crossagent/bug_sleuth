@@ -12,7 +12,9 @@ from .prompt import ROOT_AGENT_PROMPT
 from .bug_analyze_agent.agent import create_bug_analyze_agent
 
 from .bug_report_agent.agent import bug_report_agent
-from .bug_base_info_collect_agent.agent import bug_base_info_collect_agent
+from .bug_report_agent.agent import bug_report_agent
+from .tools import update_bug_info_tool
+from datetime import datetime
 import bug_sleuth.services
 from bug_sleuth.shared_libraries import constants
 
@@ -47,6 +49,10 @@ async def before_agent_callback(callback_context: CallbackContext) -> Optional[t
         if state.get("deviceInfo") is not None:
               state["session_initialized"] = True
               
+    if not state.get(StateKeys.CUR_DATE_TIME):
+        current_time = datetime.now(constants.USER_TIMEZONE)
+        state[StateKeys.CUR_DATE_TIME] = current_time.strftime("%Y年%m月%d日 %H:%M:%S")
+
     return None
 
 # --- 4. Instantiate Root Agent (Global) ---
@@ -55,11 +61,11 @@ agent = LlmAgent(
     model=constants.MODEL,
     instruction=ROOT_AGENT_PROMPT,
     sub_agents=[
-        bug_base_info_collect_agent,
         analyze_agent_instance,
         bug_report_agent,
         bug_report_agent,
     ],
+    tools=[update_bug_info_tool],
     before_agent_callback=before_agent_callback
 )
 
