@@ -14,7 +14,6 @@ from .bug_analyze_agent.agent import bug_analyze_agent
 from .bug_report_agent.agent import bug_report_agent
 from .tools import update_bug_info_tool
 from datetime import datetime
-import bug_sleuth.services
 from bug_sleuth.skill_loader import SkillLoader
 from bug_sleuth.extensions import RootAgentExtension, BugReportExtension
 from bug_sleuth.shared_libraries import constants
