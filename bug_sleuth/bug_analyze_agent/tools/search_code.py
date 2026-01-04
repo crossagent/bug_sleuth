@@ -22,7 +22,7 @@ def check_search_tools() -> Optional[str]:
 
 
 from google.adk.tools.tool_context import ToolContext
-from bug_sleuth.shared_libraries.state_keys import StateKeys
+from shared_libraries.state_keys import StateKeys
 
 @validate_path
 async def search_code_tool(
@@ -68,6 +68,12 @@ async def search_code_tool(
         # If it's the list of dicts directly (from StateKeys.REPO_REGISTRY)
         for repo in repo_registry:
             if p := repo.get("path"):
+                vcs_type = repo.get("vcs", "git").lower()
+                # SKIP SVN repositories (assumed to be Assets/Binary) for code search
+                if vcs_type == "svn":
+                    logger.info(f"DEBUG: Skipping SVN repo for code search: {p}")
+                    continue
+                
                 # Normalize to system path separator (Crucial for Windows CMD + rg)
                 repo_list.append(str(Path(p).resolve()))
     except Exception as e:

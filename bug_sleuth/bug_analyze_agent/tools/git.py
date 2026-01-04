@@ -8,6 +8,7 @@ from .decorators import validate_path
 @validate_path
 async def get_git_log_tool(
     path: Optional[str] = None, 
+    tool_context: ToolContext = None,
     limit: int = 5,
     author: Optional[str] = None
 ) -> dict:
@@ -65,6 +66,7 @@ async def get_git_log_tool(
 @validate_path
 async def get_git_diff_tool(
     target: str,
+    tool_context: ToolContext = None,
     base: Optional[str] = None,
     path: Optional[str] = None
 ) -> dict:
@@ -118,7 +120,8 @@ async def get_git_diff_tool(
 async def get_blame_tool(
     path: str,
     start_line: int,
-    end_line: int
+    end_line: int,
+    tool_context: ToolContext = None
 ) -> dict:
     """
     Get git blame for a specific code range to see who last modified it.

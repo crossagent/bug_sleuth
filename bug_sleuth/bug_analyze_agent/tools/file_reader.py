@@ -2,12 +2,14 @@ import os
 from pathlib import Path
 from typing import List, Optional
 from .decorators import validate_path
+from google.adk.tools.tool_context import ToolContext
 
 @validate_path
 async def read_file_tool(
     path: str,
+    tool_context: ToolContext,
     start_line: Optional[int] = None,
-    end_line: Optional[int] = None
+    end_line: Optional[int] = None,
 ) -> dict:
     """
     Read file content or list directory.
@@ -113,7 +115,10 @@ def _handle_dir_list(path: Path) -> dict:
         return {"status": "error", "error": f"Error listing directory: {e}"}
 
 @validate_path
-async def read_code_tool(path: str) -> dict:
+async def read_code_tool(
+    path: str,
+    tool_context: ToolContext
+) -> dict:
     """
     Read a CODE file completely to understand full context.
     Use this for .cs, .py, .cpp, .lua, etc.
