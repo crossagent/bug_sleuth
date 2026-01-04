@@ -1,14 +1,12 @@
 import logging
 from typing import Optional
-from google.adk.agents.tool import tool
-from google.adk.agents.callback_context import CallbackContext
+from google.adk.tools import ToolContext
 from bug_sleuth.shared_libraries.state_keys import StateKeys
 
 logger = logging.getLogger(__name__)
 
-@tool(description="更新Bug的基础信息，如描述、发生时间、分支、设备等。")
 def update_bug_info_tool(
-    context: CallbackContext,
+    tool_context: ToolContext,
     bug_description: Optional[str] = None,
     occurrence_time: Optional[str] = None,
     product_branch: Optional[str] = None,
@@ -25,7 +23,7 @@ def update_bug_info_tool(
         device_info: 设备平台信息 (e.g. Android, iOS)。
         device_name: 具体设备名称 (e.g. Pixel 6)。
     """
-    state = context.state
+    state = tool_context.state
     updated_fields = []
 
     if bug_description:

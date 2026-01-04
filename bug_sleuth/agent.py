@@ -12,11 +12,11 @@ from .prompt import ROOT_AGENT_PROMPT
 from .bug_analyze_agent.agent import create_bug_analyze_agent
 
 from .bug_report_agent.agent import bug_report_agent
-from .bug_report_agent.agent import bug_report_agent
 from .tools import update_bug_info_tool
 from datetime import datetime
 import bug_sleuth.services
 from bug_sleuth.shared_libraries import constants
+from bug_sleuth.shared_libraries.state_keys import StateKeys
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,6 @@ agent = LlmAgent(
     instruction=ROOT_AGENT_PROMPT,
     sub_agents=[
         analyze_agent_instance,
-        bug_report_agent,
         bug_report_agent,
     ],
     tools=[update_bug_info_tool],
