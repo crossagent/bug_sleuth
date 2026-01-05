@@ -19,7 +19,7 @@ if (-not (Test-Path $ArtifactsPath)) { New-Item -ItemType Directory -Path $Artif
 
 # Convert to URI (Using uv run python for consistency and environment usage)
 $ArtifactsUri = uv run python -c "from pathlib import Path; print(Path(r'$ArtifactsPath').resolve().as_uri())"
-$SessionUri = uv run python -c "from pathlib import Path; print(f'sqlite+aiosqlite:///{Path(r'$SessionDbPath').resolve().as_posix()}')"
+$SessionUri = uv run python -c "from pathlib import Path; print('sqlite+aiosqlite:///' + Path(r'$SessionDbPath').resolve().as_posix())"
 
 Write-Host "=============================================="
 Write-Host "🚀 Starting ADK Debug UI (Visual Builder)"
