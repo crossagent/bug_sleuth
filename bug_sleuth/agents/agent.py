@@ -14,8 +14,8 @@ from .bug_analyze_agent.agent import bug_analyze_agent
 from .bug_report_agent.agent import bug_report_agent
 from .tools import update_bug_info_tool
 from datetime import datetime
-from .skill_loader import SkillLoader
-from .extensions import RootAgentExtension, BugReportExtension
+from .skill_library.skill_loader import SkillLoader
+from .skill_library.extensions import RootAgentExtension, BugReportExtension
 from .shared_libraries import constants
 from .shared_libraries.state_keys import StateKeys
 

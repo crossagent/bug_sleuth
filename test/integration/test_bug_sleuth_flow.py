@@ -1,9 +1,9 @@
 import pytest
 import logging
-from bug_sleuth.test_utils.test_client import TestClient
-from bug_sleuth.test_utils.mock_llm_provider import MockLlm
-from bug_sleuth.agent import agent as root_agent
-from bug_sleuth.shared_libraries.state_keys import StateKeys
+from bug_sleuth.test.test_client import TestClient
+from bug_sleuth.test.mock_llm_provider import MockLlm
+from bug_sleuth.agents.agent import agent as root_agent
+from bug_sleuth.agents.shared_libraries.state_keys import StateKeys
 
 # Configure logging to see agent interactions
 logging.basicConfig(level=logging.INFO)
@@ -145,7 +145,7 @@ async def test_complex_bug_analyze_flow():
     # We patch create_bug_analyze_agent dependencies if needed
     from unittest.mock import patch
     # Patching check_search_tools to avoid errors if tools are missing
-    with patch("bug_sleuth.bug_analyze_agent.agent.check_search_tools", return_value=None):
+    with patch("bug_sleuth.agents.bug_analyze_agent.agent.check_search_tools", return_value=None):
         
         root_agent.model = "mock/test_complex"
         client = TestClient(agent=root_agent, app_name="bug_sleuth_app")

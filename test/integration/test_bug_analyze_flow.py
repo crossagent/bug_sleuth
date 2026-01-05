@@ -1,9 +1,9 @@
 import pytest
 import asyncio
 from typing import List
-from bug_sleuth.test_utils.test_client import TestClient
-from bug_sleuth.bug_analyze_agent.agent import bug_analyze_agent
-from bug_sleuth.test_utils.mock_llm_provider import MockLlm
+from bug_sleuth.test.test_client import TestClient
+from bug_sleuth.agents.bug_analyze_agent.agent import bug_analyze_agent
+from bug_sleuth.test.mock_llm_provider import MockLlm
 
 @pytest.mark.anyio
 async def test_analyze_agent_searches_logs():
@@ -20,7 +20,7 @@ async def test_analyze_agent_searches_logs():
     })
     
     # 2. Setup Env (Patch REPO_REGISTRY) to pass validation
-    from bug_sleuth.bug_analyze_agent import agent as agent_module
+    from bug_sleuth.agents.bug_analyze_agent import agent as agent_module
     agent_module.REPO_REGISTRY = [{"name": "test_repo", "path": "/tmp/test"}]
     
     # 3. Initialize Agent with Mock Model
@@ -37,7 +37,7 @@ async def test_analyze_agent_searches_logs():
     # 4. Execution
     from unittest.mock import patch
     # Patch check_search_tools to bypass 'ripgrep' check during agent callback
-    with patch("bug_sleuth.bug_analyze_agent.agent.check_search_tools", return_value=None):
+    with patch("bug_sleuth.agents.bug_analyze_agent.agent.check_search_tools", return_value=None):
         responses = await client.chat("Please check the git logs for me.")
     
     # 4. Verification
