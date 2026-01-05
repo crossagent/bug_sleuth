@@ -85,80 +85,48 @@ flowchart LR
 *   **交互式排查**：Agent 如同经验丰富的同事，与你对话推进调查。
 *   **标准化报告**：输出包含根因分析、重现步骤和修复建议的完整报告。
 
-## 快速开始
+## 快速开始 (Quick Start)
 
-### 3.2 Bridge Agent Implementation (Private Project Integration)
+### 1. 安装 (Installation)
 
-For private projects, we recommend using a dedicated `server.py` script to launch the agent. This allows you to set environment variables programmatically and debug easily.
-
-**Directory Structure:**
-```
-my_project/
-├── agents/
-│   └── bridge_agent.py   # Imports bug_sleuth.agent
-├── skills/               # Your private skills
-└── debug_server.py       # Startup script
-```
-
-**1. Create `agents/bridge_agent.py`:**
-```python
-# agents/bridge_agent.py
-import os
-
-# Ensure SKILL_PATH is set before importing bug_sleuth
-# (Optional: can also be set in debug_server.py)
-os.environ["SKILL_PATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "../skills"))
-
-from bug_sleuth import agent
-```
-
-**2. Create `debug_server.py`:**
-```python
-# debug_server.py
-import os
-import uvicorn
-from google.adk.cli.fast_api import get_fast_api_app
-
-# Point to the directory containing bridge_agent.py
-AGENTS_DIR = os.path.join(os.path.dirname(__file__), "agents")
-
-if __name__ == "__main__":
-    app = get_fast_api_app(
-        agents_dir=AGENTS_DIR,
-        host="0.0.0.0",
-        port=9000
-    )
-    uvicorn.run(app)
-```
-
-**Run:**
 ```bash
-python debug_server.py
+# 在项目根目录下执行 Editable Install
+pip install -e .
 ```
 
+这将注册 `bug-sleuth` 命令行工具。
 
+### 2. 启动服务 (Running the Server)
 
-## Skill Development Guide
+你可以直接使用命令行启动服务，无需编写任何 Python 脚本：
 
-BugSleuth supports extending agent capabilities through custom **Skills**. A Skill is a Python class that implements a specific extension interface.
+```bash
+# 基本启动 (默认端口 8000)
+bug-sleuth serve
+
+# 指定端口和 Skills 目录
+bug-sleuth serve --port 9000 --skills-dir ./skills --env-file .env.local
+```
+
+访问 `http://localhost:8000/reporter` 即可使用内置的 Bug Reporter UI。
+
+## Skill Component Guide
+
+BugSleuth 支持通过自定义 **Skills** 来扩展 Agent 能力。Skill 只是一个实现了特定接口的 Python 类。
 
 ### Directory Structure
 ```
 skills/
-└── my_custom_skill/          # The Skill Directory
-    └── tool.py               # Tool Implementation
+└── my_custom_skill/          # 你的 Skill 目录
+    └── tool.py               # 代码实现
 ```
 
-### 1. tool.py
-Instead of configuration files, you now write Python classes that inherit from BugSleuth's extension interfaces.
+### Example: tool.py
+无需配置 config 文件，只需继承并实例化接口类：
 
-**Supported Interfaces:**
-*   `RootAgentExtension`: Extends the Root Orchestrator (Top-level tools).
-*   `BugReportExtension`: Extends the Bug Report Agent.
-
-**Example:**
 ```python
-from bug_sleuth.extensions import RootAgentExtension
+# 注意导入路径已更新
+from bug_sleuth.agents.skill_library.extensions import RootAgentExtension
 from google.adk.tools import FunctionTool, BaseTool
 from typing import List
 
@@ -167,16 +135,14 @@ def my_cool_feature():
     return "Done"
 
 class MyCustomPlugin(RootAgentExtension): 
-    # Explicitly declare this extension is for the Root Agent
+    # 显式声明这是一个 Root Agent 的扩展
     
     def get_tools(self) -> List[BaseTool]:
-        # Return a list of ADK Tools
+        # 返回 ADK Tools 列表
         return [
             FunctionTool(fn=my_cool_feature)
         ]
 
-# REQUIRED: Instantiate the class so the loader can find it
+# REQUIRED: 实例化该类，SkillLoader 才能发现它
 plugin_instance = MyCustomPlugin()
 ```
-
-The `SkillLoader` will automatically discover instances of `RootAgentExtension` or `BugReportExtension` in your `SKILL_PATH` and inject them into the appropriate agents.

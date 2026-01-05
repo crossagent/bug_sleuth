@@ -4,7 +4,10 @@ import sys
 import logging
 import click
 import uvicorn
+from pathlib import Path
 from dotenv import load_dotenv
+from google.adk.cli.fast_api import get_fast_api_app
+from fastapi.responses import HTMLResponse
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +24,8 @@ def main():
 @click.option("--skills-dir", envvar="SKILL_PATH", help="Path to the skills directory.")
 @click.option("--config", envvar="CONFIG_FILE", help="Path to the configuration file.")
 @click.option("--env-file", default=".env", help="Path to .env file.")
-def serve(port, host, skills_dir, config, env_file):
+@click.option("--data-dir", default="adk_data", help="Directory for local data storage.")
+def serve(port, host, skills_dir, config, env_file, data_dir):
     """
     Start the Bug Sleuth Agent Server.
     """
@@ -39,25 +43,64 @@ def serve(port, host, skills_dir, config, env_file):
         os.environ["CONFIG_FILE"] = os.path.abspath(config)
         logger.info(f"Set CONFIG_FILE to {os.environ['CONFIG_FILE']}")
         
-    # 3. Start Uvicorn Server
-    # We import the app factory strings to avoid loading logic before env vars are set
-    logger.info(f"Starting Bug Sleuth Server on {host}:{port}")
+    # 3. Path Configuration
+    # APP_ROOT is the directory containing this cli.py (package root 'bug_sleuth')
+    APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+    AGENTS_DIR = os.path.join(APP_ROOT, "agents")
     
-    # Check if we should use the existing app instance or a factory
-    # The existing code in bug_sleuth.agents.agent instantiates 'app' globally on import.
-    # This implies that importing it WILL trigger initialization.
-    # So we must ensure env vars are set BEFORE this import happens in the Uvicorn worker process?
-    # Uvicorn loads the app. If we pass "bug_sleuth.agents.agent:app", it imports it.
-    # Since we are setting os.environ HERE in the main process, Uvicorn (if run programmatically) 
-    # should inherit them if run in the same process or forked.
+    # Resolve Data Directory
+    # If valid absolute path, use it. If relative, anchor to CWD (users expect data in their project dir)
+    if not os.path.isabs(data_dir):
+        DATA_DIR = os.path.abspath(data_dir)
+    else:
+        DATA_DIR = data_dir
+        
+    ARTIFACTS_DIR = os.path.join(DATA_DIR, "artifacts")
     
-    # However, uvicorn.run can take the app object directly if we import it first. 
-    # But checking 'agent.py', it loads extensions at top level.
-    # So we MUST set env vars *before* importing 'bug_sleuth.agents.agent'.
+    # Ensure directories exist
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(ARTIFACTS_DIR, exist_ok=True)
+    
+    # Services Configuration
+    # Local Artifacts: file:// URI
+    artifact_service_uri = Path(ARTIFACTS_DIR).resolve().as_uri()
+    
+    # Local Sessions: SQLite URI
+    session_db_path = os.path.join(DATA_DIR, "sessions.db")
+    session_service_uri = f"sqlite+aiosqlite:///{session_db_path}"
+    
+    logger.info(f"Server Configuration:")
+    logger.info(f"  App Root:     {APP_ROOT}")
+    logger.info(f"  Agents Dir:   {AGENTS_DIR}")
+    logger.info(f"  Artifacts:    {artifact_service_uri}")
+    logger.info(f"  Sessions:     {session_service_uri}")
     
     try:
-        from bug_sleuth.agents.agent import app
+        # 4. Create FastAPI App using ADK Wrapper
+        app = get_fast_api_app(
+            agents_dir=AGENTS_DIR,
+            session_service_uri=session_service_uri,
+            artifact_service_uri=artifact_service_uri,
+            web=True,
+            a2a=False, # Can be enabled via flag if needed
+            host=host,
+            port=port
+        )
+        
+        # 5. Register UI Endpoint
+        @app.get("/reporter", response_class=HTMLResponse)
+        async def get_reporter_ui():
+            """Serve the embedded bug reporter UI."""
+            ui_path = os.path.join(APP_ROOT, "ui", "index.html")
+            if os.path.exists(ui_path):
+                with open(ui_path, "r", encoding="utf-8") as f:
+                    return f.read()
+            return "<h1>Bug Sleuth UI Not Found</h1>"
+
+        # 6. Start Server
+        logger.info(f"Starting Server on {host}:{port}")
         uvicorn.run(app, host=host, port=port)
+        
     except Exception as e:
         logger.error(f"Failed to start server: {e}")
         sys.exit(1)
