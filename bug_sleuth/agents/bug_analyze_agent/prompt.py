@@ -63,7 +63,8 @@ instruction_prompt = """
     当前的帧率是：{fps}
     当前的ping值是：{ping}
     **当前操作系统 (Current OS)**: {current_os}
-    **项目根目录 (Project Root)**: {project_root}
+    **项目仓库列表 (Repositories)**:
+    {repository_list}
     
     如果需要将用户输入的时间字符串转换为Unix时间戳，可以使用 `time_convert_tool` 工具。
 
@@ -104,12 +105,12 @@ def get_prompt()-> str:
         ping=f"{{{StateKeys.PING}}}",
         product=f"{{{StateKeys.PRODUCT_DESCRIPTION}}}",
         current_os=f"{{{StateKeys.CURRENT_OS}}}",
-        project_root="{project_root}"
+        repository_list=f"{{{StateKeys.REPOSITORY_LIST_FORMATTED}}}"
     ) + """
     **分支根目录结构与访问规则 (Branch Root Structure & Access)**：
     
-    本项目所在目录为一个特定分支的根目录 (`Branch Root`)，通常包含核心代码库：
-    1.  **Project Code**: 包含核心代码 (Client, Server, Tools)。这是你主要分析代码和逻辑的地方。
+    本工程为多仓库结构 (Multi-Repo Structure)，通常包含：
+    1.  **Code Repositories**: 包含核心代码 (Client, Server, Tools)。这是你主要分析代码和逻辑的地方。
     2.  **Resources**: 包含游戏美术资源、配置表等。
     3.  **Engine/Editor**: 游戏引擎工程目录。
         *   **注意**：此目录主要是二进制文件和工程设置，不包含引擎源码。你无法查看引擎底层实现。

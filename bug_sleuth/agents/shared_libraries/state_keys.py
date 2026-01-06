@@ -22,6 +22,7 @@ class StateKeys:
     CUR_TIMESTAMP = "cur_timestamp"
     CURRENT_OS = "current_os"
     REPO_REGISTRY = "repo_registry"
+    REPOSITORY_LIST_FORMATTED = "repository_list"
     PRODUCT_DESCRIPTION = "product_description"
 
     USER_INTENT = "user_intent"

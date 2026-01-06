@@ -31,7 +31,7 @@ async def test_analyze_agent_searches_logs():
     await client.create_new_session(
         "user_1", 
         "sess_1", 
-        initial_state={"project_root": "/tmp/test_project"}
+        initial_state={}
     )
     
     # 4. Execution
