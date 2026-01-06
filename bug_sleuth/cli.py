@@ -27,7 +27,8 @@ def main():
 @click.option("--config", envvar="CONFIG_FILE", help="Path to the configuration file.")
 @click.option("--env-file", default=".env", help="Path to .env file.")
 @click.option("--data-dir", default="adk_data", help="Directory for local data storage.")
-def serve(port, host, skills_dir, config, env_file, data_dir):
+@click.option("--app-dir", default=None, help="Application startup directory (containing agents).")
+def serve(port, host, skills_dir, config, env_file, data_dir, app_dir):
     """
     Start the Bug Sleuth Agent Server.
     """
@@ -66,7 +67,8 @@ def serve(port, host, skills_dir, config, env_file, data_dir):
         app = create_app(
             host=host, 
             port=port, 
-            data_dir=data_dir
+            data_dir=data_dir,
+            app_dir=app_dir
         )
         
         # 5. Start Server

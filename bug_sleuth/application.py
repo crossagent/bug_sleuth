@@ -15,7 +15,8 @@ logger = logging.getLogger("bug_sleuth.application")
 def create_app(
     host: str = "127.0.0.1",
     port: int = 8000,
-    data_dir: Optional[str] = None
+    data_dir: Optional[str] = None,
+    app_dir: Optional[str] = None
 ) -> FastAPI:
     """
     Factory function to create the Bug Sleuth FastAPI application.
@@ -25,15 +26,21 @@ def create_app(
         port: Port to bind (used for display/logging).
         data_dir: Path to the ADK data directory (sessions/artifacts). 
                   If None, defaults to 'adk_data' in CWD.
+        app_dir: Optional path to the application directory containing agents.
+                 If None, defaults to the package root.
     
     Returns:
         Configured FastAPI app instance.
     """
     
     # 1. Path Configuration
-    # APP_ROOT is the directory containing this file (package root 'bug_sleuth')
-    APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-    AGENTS_DIR = APP_ROOT  # ADK scans subdirs (e.g., bug_scene_app)
+    # PACKAGE_ROOT is the directory containing this file (package root 'bug_sleuth')
+    PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
+    
+    if app_dir:
+        AGENTS_DIR = os.path.abspath(app_dir)
+    else:
+        AGENTS_DIR = PACKAGE_ROOT  # ADK scans subdirs (e.g., bug_scene_app)
     
     # Resolve Data Directory
     if not data_dir:
@@ -59,7 +66,7 @@ def create_app(
     session_service_uri = f"sqlite+aiosqlite:///{session_db_path}"
     
     logger.info(f"Server Configuration:")
-    logger.info(f"  App Root:     {APP_ROOT}")
+    logger.info(f"  Package Root: {PACKAGE_ROOT}")
     logger.info(f"  Agents Dir:   {AGENTS_DIR}")
     logger.info(f"  Artifacts:    {artifact_service_uri}")
     logger.info(f"  Sessions:     {session_service_uri}")
@@ -83,7 +90,8 @@ def create_app(
         @app.get("/reporter", response_class=HTMLResponse)
         async def get_reporter_ui():
             """Serve the embedded bug reporter UI."""
-            ui_path = os.path.join(APP_ROOT, "ui", "index.html")
+            """Serve the embedded bug reporter UI."""
+            ui_path = os.path.join(PACKAGE_ROOT, "ui", "index.html")
             if os.path.exists(ui_path):
                 with open(ui_path, "r", encoding="utf-8") as f:
                     return f.read()
