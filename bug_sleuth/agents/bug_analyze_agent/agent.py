@@ -336,14 +336,14 @@ bug_analyze_agent = VisualLlmAgent(
     output_key=AgentKeys.BUG_REASON,
 )
 
-app = App(
-    name="bug_analyze_app",
-    root_agent=bug_analyze_agent,
-    context_cache_config=ContextCacheConfig(
-        min_tokens=2048,
-        ttl_seconds=600,
-        cache_intervals=10
-    )
-)
+# app = App(
+#     name="bug_analyze_app",
+#     root_agent=bug_analyze_agent,
+#     context_cache_config=ContextCacheConfig(
+#         min_tokens=2048,
+#         ttl_seconds=600,
+#         cache_intervals=10
+#     )
+# )
 
 root_agent = bug_analyze_agent

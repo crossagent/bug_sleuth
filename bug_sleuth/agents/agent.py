@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 from google.adk.agents.llm_agent import LlmAgent
 # Note: Use LlmAgent for instantiation, but 'from google.adk import Agent' for sub-agents is fine if they prefer it.
-from google.adk.apps.app import App
+from google.adk.apps.app import App, EventsCompactionConfig
 from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.agents.callback_context import CallbackContext
 from google.genai import types
@@ -97,6 +97,10 @@ app = App(
     context_cache_config=ContextCacheConfig(
         min_tokens=2048,
         ttl_seconds=600,
-        cache_intervals=10,
+        cache_intervals=1,
+    ),
+    events_compaction_config=EventsCompactionConfig(
+        compaction_interval=3,
+        overlap_size=1
     )
 )

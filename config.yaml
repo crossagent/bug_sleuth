@@ -1,0 +1,16 @@
+# Agent Configuration
+product_description: "Bug Scene Test Application"
+# Cost Control (USD Soft Limit)
+# Prices based on Gemini 3 Flash (Standard)
+max_autonomous_budget_usd: 0.2
+price_per_million_input_tokens: 0.50
+price_per_million_cached_tokens: 0.10
+price_per_million_output_tokens: 3.00
+
+# Repository Configuration
+# Defaulting to empty list to verify startup.
+repositories:
+  - name: "bug_sleuth"
+    path: "../bug_sleuth"
+    vcs: "git"
+    description: "The Bug Sleuth framework source code."
