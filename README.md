@@ -151,7 +151,7 @@ skills/
 
 ```python
 # 注意导入路径已更新
-from bug_sleuth.agents.skill_library.extensions import RootAgentExtension
+from bug_sleuth.bug_scene_app.skill_library.extensions import RootAgentExtension
 from google.adk.tools import FunctionTool, BaseTool
 from typing import List
 
