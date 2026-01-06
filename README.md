@@ -148,27 +148,22 @@ skills/
 ```
 
 ### Example: tool.py
-无需配置 config 文件，只需继承并实例化接口类：
+无需复杂的类继承，只需定义 Tool 并注册到通过 `extensions` 模块暴露的全局 Registry 中：
 
 ```python
-# 注意导入路径已更新
-from bug_sleuth.bug_scene_app.skill_library.extensions import RootAgentExtension
-from google.adk.tools import FunctionTool, BaseTool
-from typing import List
+from google.adk.tools import FunctionTool
+# 导入全局注册表
+from bug_sleuth.bug_scene_app.skill_library.extensions import root_skill_registry
 
 def my_cool_feature():
     """A cool feature added by plugin."""
     return "Done"
 
-class MyCustomPlugin(RootAgentExtension): 
-    # 显式声明这是一个 Root Agent 的扩展
-    
-    def get_tools(self) -> List[BaseTool]:
-        # 返回 ADK Tools 列表
-        return [
-            FunctionTool(fn=my_cool_feature)
-        ]
+# 1. 创建 Tool 实例
+tool = FunctionTool(fn=my_cool_feature)
 
-# REQUIRED: 实例化该类，SkillLoader 才能发现它
-plugin_instance = MyCustomPlugin()
+# 2. 注册到 Root Agent
+root_skill_registry.add_tool(tool)
+
+# (可选) 如果是针对 Bug Report Agent 的工具，导入 report_skill_registry 并注册即可
 ```

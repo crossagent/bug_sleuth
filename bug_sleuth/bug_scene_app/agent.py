@@ -15,49 +15,30 @@ from .bug_report_agent.agent import bug_report_agent
 from .tools import update_bug_info_tool
 from datetime import datetime
 from .skill_library.skill_loader import SkillLoader
-from .skill_library.extensions import RootAgentExtension, BugReportExtension
+from .skill_library.extensions import root_skill_registry, report_skill_registry
 from .shared_libraries import constants
 from .shared_libraries.state_keys import StateKeys
 
 logger = logging.getLogger(__name__)
 
 # --- 1. Load Extensions (Services & Skills) ---
-# Explicitly initialize the Skill System here in the Agent Entry Point
-
 skill_loader = None
 skill_path = os.getenv("SKILL_PATH")
-root_extensions = []
-report_extensions = []
 
 if skill_path and os.path.exists(skill_path):
     logger.info(f"Initializing Skill System from: {skill_path}")
     skill_loader = SkillLoader(skill_path)
-    # Define which interfaces we care about
-    targets = [RootAgentExtension, BugReportExtension]
-    skill_loader.load_extensions(targets)
+    # Just run the skills; they will self-register into the singletons imported above
+    skill_loader.load_skills()
     
-    # Retrieve instantiated extensions
-    root_extensions = skill_loader.get_extensions_by_type(RootAgentExtension)
-    report_extensions = skill_loader.get_extensions_by_type(BugReportExtension)
-    
-if root_extensions:
-    logger.info(f"Injected {len(root_extensions)} extensions into Root Agent.")
-
-if report_extensions:
-    logger.info(f"Injected {len(report_extensions)} extensions into Bug Report Agent.")
+# Log registry status
+# (Accessing private _tools for logging purpose is acceptable here, or add public property if preferred)
+logger.info(f"Root Skill Registry has {len(root_skill_registry._tools)} tools.")
+logger.info(f"Report Skill Registry has {len(report_skill_registry._tools)} tools.")
 
 # --- 2. Create Sub-Agents ---
-# Inject Report Extensions into the Bug Report Agent
-# Since bug_report_agent is a singleton instance, we extend its tools list in-place.
-if report_extensions:
-    for ext in report_extensions:
-        # Check if ADK Agent exposes 'tools' list directly (it usually does)
-        # We append to the existing tools list.
-        if hasattr(bug_report_agent, "tools"):
-            # LlmAgent tools can be mixed BaseTool/BaseToolset.
-            bug_report_agent.tools.append(ext)
-        else:
-            logger.warning("Could not inject extensions: bug_report_agent has no 'tools' attribute.")
+# bug_report_agent now has report_skill_registry pre-embedded.
+pass
 
 # --- 3. Callback Definition ---
 async def before_agent_callback(callback_context: CallbackContext) -> Optional[types.Content]:
@@ -86,7 +67,7 @@ agent = LlmAgent(
         bug_analyze_agent,
         bug_report_agent,
     ],
-    tools=[update_bug_info_tool] + root_extensions,
+    tools=[update_bug_info_tool, root_skill_registry],
     before_agent_callback=before_agent_callback
 )
 
