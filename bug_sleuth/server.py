@@ -74,11 +74,13 @@ try:
     @app.get("/reporter", response_class=HTMLResponse)
     async def get_reporter_ui():
         """Serve the embedded bug reporter UI."""
-        ui_path = os.path.join(PACKAGE_ROOT, "ui", "index.html")
-        if os.path.exists(ui_path):
-            with open(ui_path, "r", encoding="utf-8") as f:
+        ui_path = os.getenv("BUG_SLEUTH_UI_PATH")
+        
+        if ui_path and os.path.exists(ui_path):
+             with open(ui_path, "r", encoding="utf-8") as f:
                 return f.read()
-        return "<h1>Bug Sleuth UI Not Found</h1>"
+        
+        return f"<h1>Bug Sleuth UI Not Found</h1><p>Please configure BUG_SLEUTH_UI_PATH environment variable or use --ui-path CLI option.</p>"
 
 except Exception as e:
     logger.error(f"Failed to create app: {e}")

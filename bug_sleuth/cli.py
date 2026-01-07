@@ -4,11 +4,6 @@ import sys
 import logging
 import click
 import uvicorn
-import os
-import sys
-import logging
-import click
-import uvicorn
 from dotenv import load_dotenv
 
 # Configure Logging
@@ -28,7 +23,8 @@ def main():
 @click.option("--env-file", default=".env", help="Path to .env file.")
 @click.option("--data-dir", default="adk_data", help="Directory for local data storage.")
 @click.option("--app-dir", default=None, help="Application startup directory (containing agents).")
-def serve(port, host, skills_dir, config, env_file, data_dir, app_dir):
+@click.option("--ui-path", envvar="BUG_SLEUTH_UI_PATH", help="Path to the reporter UI HTML file.")
+def serve(port, host, skills_dir, config, env_file, data_dir, app_dir, ui_path):
     """
     Start the Bug Sleuth Agent Server.
     """
@@ -64,6 +60,10 @@ def serve(port, host, skills_dir, config, env_file, data_dir, app_dir):
         
     if app_dir:
         os.environ["ADK_APP_DIR"] = app_dir
+        
+    if ui_path:
+        os.environ["BUG_SLEUTH_UI_PATH"] = os.path.abspath(ui_path)
+        logger.info(f"Set BUG_SLEUTH_UI_PATH to {os.environ['BUG_SLEUTH_UI_PATH']}")
         
     # 5. Import Global App
     try:
