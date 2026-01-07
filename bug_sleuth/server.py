@@ -32,11 +32,7 @@ logger = logging.getLogger("bug_sleuth.server")
 # 1. Path Configuration
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-app_dir_env = os.getenv("ADK_APP_DIR")
-if app_dir_env:
-    AGENTS_DIR = os.path.abspath(app_dir_env)
-else:
-    AGENTS_DIR = PACKAGE_ROOT
+AGENTS_DIR = PACKAGE_ROOT
 
 data_dir_env = os.getenv("ADK_DATA_DIR")
 if not data_dir_env:

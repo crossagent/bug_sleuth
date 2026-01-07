@@ -22,9 +22,9 @@ def main():
 @click.option("--config", envvar="CONFIG_FILE", help="Path to the configuration file.")
 @click.option("--env-file", default=".env", help="Path to .env file.")
 @click.option("--data-dir", default="adk_data", help="Directory for local data storage.")
-@click.option("--app-dir", default=None, help="Application startup directory (containing agents).")
+@click.option("--agent-dir", default=None, help="Agent startup directory (containing agent definition).")
 @click.option("--ui-path", envvar="BUG_SLEUTH_UI_PATH", help="Path to the reporter UI HTML file.")
-def serve(port, host, skills_dir, config, env_file, data_dir, app_dir, ui_path):
+def serve(port, host, skills_dir, config, env_file, data_dir, agent_dir, ui_path):
     """
     Start the Bug Sleuth Agent Server.
     """
@@ -58,8 +58,9 @@ def serve(port, host, skills_dir, config, env_file, data_dir, app_dir, ui_path):
     if data_dir:
         os.environ["ADK_DATA_DIR"] = data_dir
         
-    if app_dir:
-        os.environ["ADK_APP_DIR"] = app_dir
+    if agent_dir:
+        # Pass the user's desired agent directory to app.py for dynamic loading
+        os.environ["ADK_TARGET_AGENT_DIR"] = os.path.abspath(agent_dir)
         
     if ui_path:
         os.environ["BUG_SLEUTH_UI_PATH"] = os.path.abspath(ui_path)
