@@ -1,5 +1,5 @@
 from datetime import datetime
-from bug_sleuth.bug_scene_app.shared_libraries.constants import USER_TIMEZONE
+from bug_sleuth.shared_libraries.constants import USER_TIMEZONE
 
 # --- Utility Tools ---
 

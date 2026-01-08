@@ -71,17 +71,33 @@ async def get_git_diff_tool(
     path: Optional[str] = None
 ) -> dict:
     """
-    Get git diff to see what actually changed.
+    Get git diff to see what actually changed in a commit or between commits.
     
     Args:
-        target: The commit hash (or 'HEAD') to check. 
-                If 'base' is provided, shows diff between base and target (base..target).
-                If 'base' is NOT provided, shows changes IN that commit (git show).
-        base: Optional. Create a range diff (base..target). 
-        path: Optional. Limit diff to specific file path.
+        target: **REQUIRED**. The commit hash (e.g., 'a1b2c3d') or 'HEAD' to check.
+                **IMPORTANT**: Use ACTUAL commit hash from git log, NOT placeholder text like '<rev>' or '<commit>'.
+                Examples of VALID values: 'HEAD', 'a1b2c3d', '9f8e7d6'
+                Examples of INVALID values: '<rev>', '<commit>', '<target>'
+        
+        base: **OPTIONAL**. If provided, shows diff between two commits (base → target).
+              **IMPORTANT**: Use ACTUAL commit hash, NOT placeholder text.
+              Examples: 'HEAD~1', 'b2c3d4e', 'main'
+              
+        path: **OPTIONAL**. Limit diff to specific file path.
+              Example: 'Assets/Scripts/Player.cs'
+    
+    Usage Examples:
+        1. View changes in a specific commit:
+           get_git_diff_tool(target='a1b2c3d')
+        
+        2. Compare two commits:
+           get_git_diff_tool(base='HEAD~1', target='HEAD')
+        
+        3. View changes in a file for a commit:
+           get_git_diff_tool(target='a1b2c3d', path='Assets/Scripts/Player.cs')
 
     Returns:
-        dict: The diff output.
+        dict: The diff output with status and diff content.
     """
     if base:
         # Range diff: git diff base target -- path

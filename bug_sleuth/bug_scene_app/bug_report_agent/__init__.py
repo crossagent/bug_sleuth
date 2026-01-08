@@ -1,1 +1,1 @@
-from .agent import bug_report_agent as agent
+from .agent import bug_report_agent as root_agent

@@ -28,11 +28,11 @@ def load_agent_from_dir(agent_dir: str):
     except ImportError as e:
         raise ImportError(f"Failed to import module '{module_name}' from '{parent_dir}': {e}")
 
-    # Strictly look for 'agent' as requested
+    # Strictly look for 'root_agent' as requested
     try:
-        return getattr(module, "agent")
+        return getattr(module, "root_agent")
     except AttributeError:
-        raise ImportError(f"Module '{module_name}' loaded, but has no 'agent' attribute. Please add 'from .X import X as agent' to __init__.py")
+        raise ImportError(f"Module '{module_name}' loaded, but has no 'root_agent' attribute. Please add 'from .X import X as root_agent' to __init__.py")
 
 # Check for dynamic target from CLI
 target_agent_dir = os.getenv("ADK_TARGET_AGENT_DIR")

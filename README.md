@@ -143,27 +143,38 @@ BugSleuth 支持通过自定义 **Skills** 来扩展 Agent 能力。Skill 只是
 ### Directory Structure
 ```
 skills/
-└── my_custom_skill/          # 你的 Skill 目录
-    └── tool.py               # 代码实现
+└── my_custom_skill/          # 你的 Skill 目录 (Python Package)
+    ├── __init__.py           # [New] 注册逻辑
+    └── tool.py               # [Clean] 纯业务逻辑
 ```
 
-### Example: tool.py
-无需复杂的类继承，只需定义 Tool 并注册到通过 `extensions` 模块暴露的全局 Registry 中：
+### Example: tool.py (Pure Business Logic)
+业务代码完全解耦，不依赖 `bug_sleuth`：
 
 ```python
 from google.adk.tools import FunctionTool
-# 导入全局注册表
-from bug_sleuth.bug_scene_app.skill_library.extensions import root_skill_registry
 
 def my_cool_feature():
     """A cool feature added by plugin."""
     return "Done"
-
-# 1. 创建 Tool 实例
-tool = FunctionTool(fn=my_cool_feature)
-
-# 2. 注册到 Root Agent
-root_skill_registry.add_tool(tool)
-
-# (可选) 如果是针对 Bug Report Agent 的工具，导入 report_skill_registry 并注册即可
 ```
+
+### Example: __init__.py (Registration Adapter)
+负责将业务逻辑“适配”并注册到系统中：
+
+```python
+try:
+    from bug_sleuth.bug_scene_app.skill_library.extensions import root_skill_registry
+    from google.adk.tools import FunctionTool
+    from .tool import my_cool_feature
+
+    # 1. 创建 Tool 实例
+    tool = FunctionTool(fn=my_cool_feature)
+
+    # 2. 注册到 Root Agent
+    root_skill_registry.add_tool(tool)
+    
+except ImportError:
+    pass
+```
+

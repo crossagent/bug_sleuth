@@ -1,4 +1,4 @@
-from bug_sleuth.bug_scene_app.shared_libraries.state_keys import StateKeys
+from bug_sleuth.shared_libraries.state_keys import StateKeys
 
 instruction_prompt = """
     你是一个专家级的游戏Bug分析师和调试助手。你的任务是通过交互式的方式，像一个经验丰富的侦探一样，找出Bug的根本原因。
@@ -81,12 +81,35 @@ instruction_prompt = """
     *   **如何读取代码 (Efficient Reading)?**
         *   **优先方案**：如果 `search_symbol_tool` 返回了行号范围 (e.g., Lines 15-50)，请使用 `read_file_tool(path, start_line=15, end_line=50)` 只读取该片段。
         *   **完整读取**：如果需要查看完整文件（如 Imports），直接使用不带行号的 `read_file_tool(path)` 即可。
-       - 如果是 Windows: 请使用 PowerShell 或 cmd 命令 (e.g. `dir`, `type`). **严禁**使用 `find .`, `grep`, `ls` 等 Linux 命令，除非你确定它们在 `git bash` 环境下可用且不会导致冲突。
-       - 如果是 Linux: 可以正常使用 bash 命令。
-    2. 每次行动前，务必先检查 `investigation_plan.md` (通过工具)，以确保你的行动与计划一致。
+    
+    **命令行工具使用规范 (Command Line Usage)**：
+    {platform_command_guidance}
+    
     """
 
 def get_prompt()-> str:
+    import platform
+    
+    # Detect current platform and generate appropriate command guidance
+    current_platform = platform.system()
+    
+    if current_platform == "Windows":
+        platform_guidance = """
+    *   **你当前运行在 Windows 系统上**。
+    *   使用 `run_bash_command` 时，请使用 **PowerShell 或 cmd 命令**:
+        *   列出目录: `dir` 或 `Get-ChildItem`
+        *   查看文件: `type` 或 `Get-Content`
+        *   搜索文件: `Get-ChildItem -Recurse -Filter "*.cs"`
+    *   **严禁使用** `grep`, `find`, `ls` 等 Linux/Unix 命令，它们在 Windows 原生环境下不可用。
+    *   如果必须使用类似 grep 的功能，请使用 `Select-String` (PowerShell) 或专用的搜索工具 `search_code_tool`。
+        """
+    else:  # Linux, Darwin (macOS), or other Unix-like systems
+        platform_guidance = """
+    *   **你当前运行在 Unix/Linux 系统上**。
+    *   可以正常使用标准 bash 命令: `grep`, `find`, `ls`, `cat` 等。
+    *   使用 `run_bash_command` 执行 shell 脚本或命令行工具。
+        """
+    
     return instruction_prompt.format(
         current_investigation_plan=f"{{{StateKeys.CURRENT_INVESTIGATION_PLAN}}}",
         bug_user_description=f"{{{StateKeys.BUG_USER_DESCRIPTION}}}",
@@ -105,7 +128,8 @@ def get_prompt()-> str:
         ping=f"{{{StateKeys.PING}}}",
         product=f"{{{StateKeys.PRODUCT_DESCRIPTION}}}",
         current_os=f"{{{StateKeys.CURRENT_OS}}}",
-        repository_list=f"{{{StateKeys.REPOSITORY_LIST_FORMATTED}}}"
+        repository_list=f"{{{StateKeys.REPOSITORY_LIST_FORMATTED}}}",
+        platform_command_guidance=platform_guidance
     ) + """
     **访问原则 (Access Principles)**：
     *   **严格通过工具访问**：必须使用 `file_ops_tool` (查找/读取文件) 和 `git_tools`/`svn_tools` (如果有) 来获取信息。

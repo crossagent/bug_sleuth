@@ -1,42 +1,50 @@
 # 定义所有状态键的常量
 class StateKeys:
-    DEVICE_INFO = "deviceInfo"
-    DEVICE_NAME = "deviceName"
+    # Device & Environment
+    DEVICE_INFO = "device_info"
+    DEVICE_NAME = "device_name"
+    CURRENT_OS = "current_os"
 
-
+    # Bug Info
     BUG_DESCRIPTION = "bug_description"
     BUG_USER_DESCRIPTION = "bug_user_description"
-    PRODUCT_BRANCH = "productBranch"
-    CLIENT_LOG_URL = "clientLogUrl"
-    CLIENT_LOG_URLS = "clientLogUrls"  # LIST
-    CLIENT_SCREENSHOT_URLS = "clientScreenshotUrls"  # LIST
-    CLIENT_VERSION = "clientVersion"
-    SERVER_ID = "serverId"
-    ROLE_ID = "roleId"
-    NICK_NAME = "nickName"
     BUG_OCCURRENCE_TIME = "bug_occurrence_time"
+    
+    # Product & Branch
+    PRODUCT_BRANCH = "product_branch"
+    PRODUCT_DESCRIPTION = "product_description"
+    CLIENT_VERSION = "client_version"
+
+    # User Info
+    SERVER_ID = "server_id"
+    ROLE_ID = "role_id"
+    NICK_NAME = "nick_name"
+    
+    # Performance
     FPS = "fps"
     PING = "ping"
+    
+    # Attachments
+    CLIENT_LOG_URL = "client_log_url"
+    CLIENT_LOG_URLS = "client_log_urls"  # LIST
+    CLIENT_SCREENSHOT_URLS = "client_screenshot_urls"  # LIST
 
+    # Time
     CUR_DATE_TIME = "cur_date_time"
     CUR_TIMESTAMP = "cur_timestamp"
-    CURRENT_OS = "current_os"
+    
+    # Repository
     REPO_REGISTRY = "repo_registry"
     REPOSITORY_LIST_FORMATTED = "repository_list"
-    PRODUCT_DESCRIPTION = "product_description"
 
+    # Agent State
     USER_INTENT = "user_intent"
-
-    BUG_DESCRIPTION = "bug_description"
-
-
     CURRENT_INVESTIGATION_PLAN = "current_investigation_plan"
     STEP_COUNT = "step_count"
     
-    # [NEW] Token Tracking Keys
-    CURRENT_AUTONOMOUS_COST = "current_autonomous_cost"        # Float (USD)
-
-    PAUSE_COUNT = "pause_count" # Integer
+    # Token Tracking Keys
+    CURRENT_AUTONOMOUS_COST = "current_autonomous_cost"  # Float (USD)
+    PAUSE_COUNT = "pause_count"  # Integer
     TOTAL_SESSION_TOKENS = "total_session_tokens"
     TOTAL_INPUT_TOKENS = "total_input_tokens"
     TOTAL_CACHED_TOKENS = "total_cached_tokens"

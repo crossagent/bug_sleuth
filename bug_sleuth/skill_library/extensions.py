@@ -25,3 +25,4 @@ class DynamicToolset(BaseToolset):
 
 root_skill_registry = DynamicToolset()
 report_skill_registry = DynamicToolset()
+analyze_skill_registry = DynamicToolset()

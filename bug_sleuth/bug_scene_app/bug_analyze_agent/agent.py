@@ -39,11 +39,12 @@ if not REPO_REGISTRY:
 # 3. Imports
 from datetime import datetime
 
-from bug_sleuth.bug_scene_app.shared_libraries.constants import MODEL, USER_TIMEZONE
+from bug_sleuth.shared_libraries.constants import MODEL, USER_TIMEZONE
+from bug_sleuth.skill_library.extensions import analyze_skill_registry
 from google.adk import Agent
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.agents.run_config import RunConfig
-from bug_sleuth.bug_scene_app.shared_libraries import constants
+from bug_sleuth.shared_libraries import constants
 from google.adk.apps.app import App
 from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.models.llm_response import LlmResponse
@@ -81,7 +82,7 @@ from .tools.svn import get_svn_log_tool, get_svn_diff_tool
 from google.adk.tools import load_artifacts
 from google.adk.planners import BuiltInPlanner
 from google.genai import types
-from bug_sleuth.bug_scene_app.shared_libraries.state_keys import StateKeys, AgentKeys
+from bug_sleuth.shared_libraries.state_keys import StateKeys, AgentKeys
 
 
 logger = logging.getLogger(__name__)
@@ -276,14 +277,14 @@ def inject_default_values(callback_context: CallbackContext):
 
     defaults = {
         StateKeys.BUG_USER_DESCRIPTION: "暂无用户描述 (No user description provided)",
-        "deviceInfo": "Unknown",
-        "deviceName": "Unknown",
-        "productBranch": "Unknown",
-        "roleId": "Unknown",
-        "nickName": "Unknown",
-        "serverId": "Unknown",
-        "fps": "Unknown",
-        "ping": "Unknown",
+        StateKeys.DEVICE_INFO: "Unknown",
+        StateKeys.DEVICE_NAME: "Unknown",
+        StateKeys.PRODUCT_BRANCH: "Unknown",
+        StateKeys.ROLE_ID: "Unknown",
+        StateKeys.NICK_NAME: "Unknown",
+        StateKeys.SERVER_ID: "Unknown",
+        StateKeys.FPS: "Unknown",
+        StateKeys.PING: "Unknown",
         StateKeys.CLIENT_LOG_URLS: "[]",
         StateKeys.CLIENT_SCREENSHOT_URLS: "[]"
     }
@@ -293,7 +294,7 @@ def inject_default_values(callback_context: CallbackContext):
 
 
 from google.adk.agents.llm_agent import LlmAgent
-from bug_sleuth.bug_scene_app.shared_libraries.visual_llm_agent import VisualLlmAgent
+from bug_sleuth.shared_libraries.visual_llm_agent import VisualLlmAgent
 
 bug_analyze_agent = VisualLlmAgent(
     name="bug_analyze_agent",
@@ -328,6 +329,7 @@ bug_analyze_agent = VisualLlmAgent(
         get_svn_log_tool,
         get_svn_diff_tool,
         load_artifacts,
+        analyze_skill_registry,
         FunctionTool(
             deploy_fix_tool,
             require_confirmation=True

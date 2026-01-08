@@ -12,6 +12,8 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body
 from fastapi.responses import HTMLResponse
 
 # ADK Imports
+from google.adk.apps.app import App
+from google.adk.runners import Runner
 from google.adk.cli.adk_web_server import AdkWebServer
 from google.adk.cli.utils.agent_loader import AgentLoader
 from google.adk.cli.service_registry import get_service_registry, load_services_module
@@ -24,6 +26,7 @@ from google.adk.evaluation.local_eval_sets_manager import LocalEvalSetsManager
 from google.adk.evaluation.local_eval_set_results_manager import LocalEvalSetResultsManager
 from google.adk.events.event import Event
 from google.adk.events.event_actions import EventActions
+from bug_sleuth.shared_libraries.state_keys import StateKeys
 from google.genai import types
 
 # Configure Logging
@@ -58,6 +61,25 @@ logger.info(f"  Package Root: {PACKAGE_ROOT}")
 logger.info(f"  Agents Dir:   {AGENTS_DIR}")
 logger.info(f"  Artifacts:    {artifact_service_uri}")
 logger.info(f"  Sessions:     {session_service_uri}")
+
+# --- 1.5. Load Extensions (Services & Skills) ---
+# Moved from agent.py to ensure global registration happens at startup
+from bug_sleuth.skill_library.skill_loader import SkillLoader
+from bug_sleuth.skill_library.extensions import root_skill_registry, report_skill_registry, analyze_skill_registry
+
+skill_path = os.getenv("SKILL_PATH")
+if skill_path and os.path.exists(skill_path):
+    logger.info(f"Initializing Skill System from: {skill_path}")
+    skill_loader = SkillLoader(skill_path)
+    # Just run the skills; they will self-register into the global registries
+    skill_loader.load_skills()
+    
+    # Log registry status explicitly for verification
+    logger.info(f"Root Skill Registry has {len(root_skill_registry._tools)} tools.")
+    logger.info(f"Report Skill Registry has {len(report_skill_registry._tools)} tools.")
+    logger.info(f"Analyze Skill Registry has {len(analyze_skill_registry._tools)} tools.")
+else:
+    logger.info("No SKILL_PATH set or path does not exist. Skipping skill loading.")
 
 try:
     # 2. Manual Bootstrapping of ADK Services
@@ -135,48 +157,71 @@ try:
     async def init_session(
         app_name: str = Body(..., embed=True),
         user_id: str = Body(..., embed=True),
-        message: Optional[str] = Body(None, embed=True)
+        context: Dict[str, Any] = Body(..., embed=True)
     ):
-        """Initializes a session, optionally invoking the agent with a message."""
-        logger.info(f"Initializing session for app: {app_name}, user: {user_id}")
+        """Initializes a new session context (state) and optionally a user message."""
+        logger.info(f"Initializing session for user {user_id} in app {app_name}")
         
-        # Check if session exists or create new
-        # We don't have a simple 'get_or_create' so we try to get recent sessions or create one.
-        # For simplicity, if we are 'initializing', we might want a clean session or use a specific one.
-        # Let's create a NEW session ID to ensure fresh start if called.
+        # Map camelCase input keys to snake_case StateKeys
+        KEY_MAPPING = {
+            "deviceInfo": StateKeys.DEVICE_INFO,
+            "deviceName": StateKeys.DEVICE_NAME,
+            "productBranch": StateKeys.PRODUCT_BRANCH,
+            "clientLogUrl": StateKeys.CLIENT_LOG_URL,
+            "clientLogUrls": StateKeys.CLIENT_LOG_URLS,
+            "clientScreenshotUrls": StateKeys.CLIENT_SCREENSHOT_URLS,
+            "clientVersion": StateKeys.CLIENT_VERSION,
+            "serverId": StateKeys.SERVER_ID,
+            "roleId": StateKeys.ROLE_ID,
+            "nickName": StateKeys.NICK_NAME,
+            "message": StateKeys.BUG_DESCRIPTION,  # Alias
+            "occurrence_time": StateKeys.BUG_OCCURRENCE_TIME,  # Map to full key
+            "bug_description": StateKeys.BUG_DESCRIPTION,  # Ensure consistency
+        }
         
-        # Actually, best practice for 'init' is typically to start fresh.
-        # But if the UI refreshes, we might want to keep history.
-        # Let's assume we create a new one for now.
-        session = await session_service.create_session(app_name=app_name, user_id=user_id)
+        # Transform context keys to snake_case
+        normalized_context = {}
+        for key, value in context.items():
+            snake_key = KEY_MAPPING.get(key, key)  # Use mapping or keep original if already snake_case
+            normalized_context[snake_key] = value
         
-        if message:
-            # Create a user event
-            event = Event(
-                id=str(uuid.uuid4()),
-                author="user",
-                content=types.Content(
-                    role="user",
-                    parts=[types.Part(text=message)]
-                ),
-                timestamp=time.time(),
-                turn_complete=True 
-            )
-            
-            # Append event
-            await session_service.append_event(session, event)
-            
-            # Note: We are just appending the event. The ADK Runner needs to pick this up.
-            # get_fast_api_app binds the event processing usually via /run_agent endpoints.
-            # If we want to TRIGGER the agent, we might need to use the Runner.
-            # However, standard ADK UI logic is: Append Event -> UI detects change -> UI calls /run?
-            # Or usually: POST /run_agent which takes the message.
-            
-            # If we just want to seed the history, append_event is enough. 
-            # If we want to RUN it, we should probably call the run logic or let the client call run.
-            
-            # For this request, "Input as an event" implies seeding the input.
-            
+        # 1. Create or Get Session
+        session = await session_service.create_session(
+            app_name=app_name,
+            user_id=user_id
+        )
+
+        # 2. Extract specific fields for the event text
+        bug_description = normalized_context.get(StateKeys.BUG_DESCRIPTION) or "New Bug Report Initialized"
+        
+        # 3. Create First Event: State Update (System-side, invisible in chat usually)
+        # This event carries the payload to update the session state.
+        state_event = Event(
+            id=str(uuid.uuid4()),
+            author="system",
+            # We provide minimal content or None. If strict validation requires content, we provide a hidden system note.
+            # But Event model allows optional content/parts. Let's start with empty content to be "invisible".
+            # If that fails validation, we'll add a system log message.
+            actions=EventActions(state_delta=normalized_context),
+            timestamp=time.time(),
+            turn_complete=False # Not turning over to agent yet
+        )
+        await session_service.append_event(session, state_event)
+
+        # 4. Create Second Event: Visible User Message
+        # This event is what the Agent and User "see" in the chat transcript.
+        message_event = Event(
+            id=str(uuid.uuid4()),
+            author="system",
+            content=types.Content(
+                role="user",
+                parts=[types.Part(text=f"Bug Report: {bug_description}")]
+            ),
+            timestamp=time.time(),
+            turn_complete=True 
+        )
+        await session_service.append_event(session, message_event)
+        
         return {"session_id": session.id}
 
     @app.post("/upload")
@@ -190,44 +235,18 @@ try:
         logger.info(f"Uploading file {file.filename} for session {session_id}")
         
         # 1. Save artifact
-        # ArtifactService usually expects 'Part' or similar, or we can use specific internal methods.
-        # Looking at ArtifactService overrides (e.g. FileArtifactService), they usually have 'create_artifact'.
-        # Let's look at BaseArtifactService signature if possible.
-        # But wait, exposed artifact_service is abstract base type in variables, but concrete at runtime.
-        # FileArtifactService specifically handles file://. 
-        
-        # Actually, let's just use the helper provided in fast_api.py or similar?
-        # fast_api.py doesn't expose upload/download easily for agents.
-        # Let's just save it using standard python for now if ArtifactService is complex, 
-        # BUT the goal is to use ArtifactService.
-        
-        # Let's assume FileArtifactService.save_artifact takes a filename and bytes/stream.
-        # Checking adk code would be ideal, but let's assume standard file writing for 'file://' service.
-        
-        # The 'FileArtifactService' (from inspection) maps 'file://root' -> 'root/filename'.
-        # It's safer to rely on the service abstraction if we can, but 'create_artifact' might need 'types.Part'.
-        
-        # Simplest approach for 'file' service:
-        # Just write to the artifacts dir directly since we know the path.
-        # AND register it in the session?
-        
-        # Actually, sticking to the path:
         file_path = Path(ARTIFACTS_DIR) / file.filename
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
         # 2. Append Event
-        # We need to tell the agent a file was uploaded.
-        # We can create a user event saying "Uploaded file: <filename>"
-        # Or a system event.
-        
         session = await session_service.get_session(app_name=app_name, user_id=user_id, session_id=session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
             
         event = Event(
             id=str(uuid.uuid4()),
-            author="user", 
+            author="system", 
             content=types.Content(
                 role="user",
                 parts=[types.Part(text=f"Uploaded file: {file.filename}")]
@@ -238,7 +257,6 @@ try:
         await session_service.append_event(session, event)
         
         return {"filename": file.filename, "path": str(file_path)}
-
 
     # 4. Register UI Endpoint (Restoring original UI)
     @app.get("/reporter", response_class=HTMLResponse)

@@ -1,9 +1,9 @@
 from google.adk import Agent
 from google.adk.agents.callback_context import CallbackContext
-from bug_sleuth.bug_scene_app.shared_libraries import constants
+from bug_sleuth.shared_libraries import constants
 from . import prompt
 
-from bug_sleuth.bug_scene_app.shared_libraries.constants import MODEL
+from bug_sleuth.shared_libraries.constants import MODEL
 
 import logging
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 from typing import Optional, List
 from google.adk.tools import BaseTool
-from bug_sleuth.bug_scene_app.skill_library.extensions import report_skill_registry
+from bug_sleuth.skill_library.extensions import report_skill_registry
 
 bug_report_agent = Agent(
     name="bug_report_agent",

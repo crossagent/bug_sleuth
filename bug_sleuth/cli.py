@@ -75,7 +75,7 @@ def serve(port, host, skills_dir, config, env_file, data_dir, agent_dir, ui_path
         uvicorn.run(app, host=host, port=port)
         
     except Exception as e:
-        logger.error(f"Failed to start server: {e}")
+        logger.exception(f"Failed to start server: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

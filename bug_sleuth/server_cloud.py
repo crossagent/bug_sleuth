@@ -54,6 +54,18 @@ logger.info(f"  Agents Dir:   {AGENTS_DIR}")
 logger.info(f"  Artifacts:    {artifact_service_uri}")
 logger.info(f"  Sessions:     {session_service_uri}")
 
+# --- 1.5. Load Extensions (Services & Skills) ---
+from bug_sleuth.skill_library.skill_loader import SkillLoader
+
+skill_path = os.getenv("SKILL_PATH")
+if skill_path and os.path.exists(skill_path):
+    logger.info(f"Initializing Skill System from: {skill_path}")
+    skill_loader = SkillLoader(skill_path)
+    # Just run the skills; they will self-register into the global registries
+    skill_loader.load_skills()
+else:
+    logger.info("No SKILL_PATH set or path does not exist. Skipping skill loading.")
+
 try:
     # 2. Create FastAPI App using ADK Wrapper (Global Instance)
     # This wrapper handles the logic of loading agents from AGENTS_DIR 

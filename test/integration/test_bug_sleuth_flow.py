@@ -3,7 +3,7 @@ import logging
 from bug_sleuth.test.test_client import TestClient
 from bug_sleuth.test.mock_llm_provider import MockLlm
 from bug_sleuth.bug_scene_app.agent import agent as root_agent
-from bug_sleuth.bug_scene_app.shared_libraries.state_keys import StateKeys
+from bug_sleuth.shared_libraries.state_keys import StateKeys
 
 # Configure logging to see agent interactions
 logging.basicConfig(level=logging.INFO)
