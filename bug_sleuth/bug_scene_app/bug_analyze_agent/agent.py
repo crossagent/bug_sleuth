@@ -56,7 +56,6 @@ from typing import Optional
 import logging
 import platform
 
-from .sub_agents.log_analyst import log_analysis_agent
 
 from .tools import (
     time_convert_tool, 
@@ -314,7 +313,6 @@ bug_analyze_agent = VisualLlmAgent(
     after_model_callback=TokenLimitHandler.after_model_callback,
 
     tools=[
-        AgentTool(agent=log_analysis_agent),
         time_convert_tool, 
         update_investigation_plan_tool, 
         run_bash_command,
