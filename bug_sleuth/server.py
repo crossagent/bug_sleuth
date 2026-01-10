@@ -72,24 +72,18 @@ logger.info(f"  Package Root: {PACKAGE_ROOT}")
 logger.info(f"  Artifacts:    {artifact_service_uri}")
 logger.info(f"  Sessions:     {session_service_uri}")
 
-# --- 1.5. Load Extensions (Services & Skills) ---
-# Moved from agent.py to ensure global registration happens at startup
-from bug_sleuth.skill_library.skill_loader import SkillLoader
-from bug_sleuth.skill_library.extensions import root_skill_registry, report_skill_registry, analyze_skill_registry
+# --- 1.5. Initialize Application (Skills & Config) ---
+# Using app_factory for unified initialization
+from bug_sleuth.app_factory import create_app, AppConfig
 
-skill_path = os.getenv("SKILL_PATH")
-if skill_path and os.path.exists(skill_path):
-    logger.info(f"Initializing Skill System from: {skill_path}")
-    skill_loader = SkillLoader(skill_path)
-    # Just run the skills; they will self-register into the global registries
-    skill_loader.load_skills()
-    
-    # Log registry status explicitly for verification
-    logger.info(f"Root Skill Registry has {len(root_skill_registry._tools)} tools.")
-    logger.info(f"Report Skill Registry has {len(report_skill_registry._tools)} tools.")
-    logger.info(f"Analyze Skill Registry has {len(analyze_skill_registry._tools)} tools.")
-else:
-    logger.info("No SKILL_PATH set or path does not exist. Skipping skill loading.")
+# Create app instance (loads skills and config)
+bug_sleuth_app = create_app(AppConfig(
+    skill_path=os.getenv("SKILL_PATH"),
+    config_file=os.getenv("CONFIG_FILE")
+))
+
+# Log registry status
+logger.info(f"App initialized. Skill stats: {bug_sleuth_app.skill_registry_stats}")
 
 try:
     # 2. Manual Bootstrapping of ADK Services

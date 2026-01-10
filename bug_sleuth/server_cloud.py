@@ -1,3 +1,21 @@
+"""
+DEPRECATED: This file is deprecated in favor of server.py which uses app_factory.
+
+The get_fast_api_app() API is too restrictive for proper app initialization control.
+Use server.py instead, which provides:
+- Unified initialization via app_factory.create_app()
+- Custom endpoints (/init, /upload)
+- Full control over agent configuration
+
+This file is kept for reference only and may be removed in future versions.
+"""
+
+import warnings
+warnings.warn(
+    "server_cloud.py is deprecated. Use server.py instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import os
 import sys

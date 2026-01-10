@@ -73,6 +73,7 @@ from .tools import (
     get_svn_diff_tool, # Added
     deploy_fix_tool
 )
+
 from .tools.search_symbol import search_symbol_tool
 from .tools.search_code import check_search_tools
 from .tools.search_res import search_res_tool
@@ -335,4 +336,3 @@ bug_analyze_agent = VisualLlmAgent(
     ],
     output_key=AgentKeys.BUG_REASON,
 )
-
