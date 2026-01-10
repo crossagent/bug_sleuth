@@ -1,7 +1,7 @@
 import os
 import pytest
 from google.adk.models import LLMRegistry
-from bug_sleuth.test.mock_llm_provider import MockLlm
+from bug_sleuth.testing import MockLlm
 
 
 def pytest_configure(config):

@@ -13,8 +13,7 @@ import logging
 from unittest.mock import patch
 
 from bug_sleuth.app_factory import create_app, AppConfig
-from bug_sleuth.test.test_client import TestClient
-from bug_sleuth.test.mock_llm_provider import MockLlm
+from bug_sleuth.testing import TestClient, MockLlm
 from bug_sleuth.shared_libraries.state_keys import StateKeys
 
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +25,9 @@ def mock_external_deps():
     Only mock external tool availability checks, not config.
     REPO_REGISTRY comes from real config.yaml.
     """
+    # Explicitly import to ensure module is attached to parent package for patching
+    import bug_sleuth.bug_scene_app.bug_analyze_agent.agent
+
     with patch("bug_sleuth.bug_scene_app.bug_analyze_agent.agent.check_search_tools", 
                return_value=None):
         yield

@@ -80,7 +80,7 @@ app = create_app(AppConfig(
 模拟 LLM 响应：
 
 ```python
-from bug_sleuth.test.mock_llm_provider import MockLlm
+from bug_sleuth.testing import MockLlm
 
 MockLlm.set_behaviors({
     # 返回文本
@@ -99,7 +99,7 @@ MockLlm.set_behaviors({
 封装 ADK Runner 的测试客户端：
 
 ```python
-from bug_sleuth.test.test_client import TestClient
+from bug_sleuth.testing import TestClient
 
 client = TestClient(agent=app.agent, app_name="test_app")
 await client.create_new_session("user_1", "sess_1")
