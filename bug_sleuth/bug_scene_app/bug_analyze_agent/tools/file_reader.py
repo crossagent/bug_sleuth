@@ -12,15 +12,25 @@ async def read_file_tool(
     end_line: Optional[int] = None,
 ) -> dict:
     """
-    Read file content or list directory.
+    读取文件内容或列出目录。
+    
+    **最佳实践 (Best Practice)**:
+    - 如果 search_symbol_tool 返回了行号范围 (e.g., Lines 15-50)，
+      请使用 `read_file_tool(path, start_line=15, end_line=50)` 只读取该片段
+    - 这样可以 **节省 Token**，保留更多上下文窗口用于分析
+    - 仅在需要查看 Imports 或完整文件结构时才完整读取
+    
+    **支持的操作**:
+    - 读取文件: 支持按行号范围读取片段
+    - 列出目录: 当 path 是目录时，返回目录列表（深度限制 2 层）
 
     Args:
-        path: Absolute path to the file or directory.
-        start_line: Optional. Start line number (1-based).
-        end_line: Optional. End line number.
+        path: 文件或目录的**绝对路径**
+        start_line: 可选，起始行号 (1-based)
+        end_line: 可选，结束行号
 
     Returns:
-        dict: File content or directory listing.
+        dict: 文件内容或目录列表
     """
     if not path:
         return {"status": "error", "error": "Path is required."}

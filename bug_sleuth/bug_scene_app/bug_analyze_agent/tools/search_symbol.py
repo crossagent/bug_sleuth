@@ -43,14 +43,32 @@ async def search_symbol_tool(
     type_filter: Optional[str] = None
 ) -> dict:
     """
-    Searches for code symbols (classes, methods, enums) using the pre-built SQLite index.
+    查找代码符号的**定义位置** (Definition)。基于预构建的 SQLite 索引。
+    
+    **适用场景 (When to Use)**:
+    - 查找类、方法、枚举的**定义在哪里** (e.g., "BattleManager 在哪定义？")
+    - 查看类的源码位置和行号范围
+    - 快速定位核心类的入口
+    
+    **优势 (Advantages)**:
+    - ⚡ **速度最快**: 基于预构建索引，秒级响应
+    - 返回精确的**行号范围** (Lines 15-50)，可直接用于 read_file_tool
+    
+    **限制 (Limitations)**:
+    - ⚠️ **仅支持 C#**: 不支持 Lua, Python, Json 等其他语言
+    - 仅查找**定义**，不查找引用 (References)
+    - 需要预先运行 indexer 构建索引
+    
+    **与 search_code_tool 的区别**:
+    - search_symbol_tool: 查**定义**，仅 C#，速度最快
+    - search_code_tool: 查**引用**和**任意文本**，支持所有文件类型
     
     Args:
-        symbol_name: The name of the symbol to find (e.g., "BattleManager", "Explode"). Supports partial matches.
-        type_filter: Optional. Filter by type: 'class', 'method', 'field', 'enum', etc.
+        symbol_name: 要查找的符号名称 (e.g., "BattleManager", "Explode")，支持部分匹配
+        type_filter: 可选，按类型过滤: 'class', 'method', 'field', 'enum' 等
         
     Returns:
-        Summary of found symbols and their locations.
+        dict: 匹配符号列表，包含文件路径和行号范围
     """
     
     # 1. Identify Repositories
