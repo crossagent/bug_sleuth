@@ -178,3 +178,150 @@ except ImportError:
     pass
 ```
 
+## 模型选择 (Model Configuration)
+
+BugSleuth 通过 **环境变量** 统一控制模型选择，支持多种模型提供商：
+
+### 环境变量
+
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `GOOGLE_GENAI_MODEL` | `gemini-3-flash-preview` | 模型标识符 |
+
+### 支持的模型格式
+
+```bash
+# Gemini (原生支持)
+GOOGLE_GENAI_MODEL=gemini-3-flash-preview
+
+# OpenAI via LiteLLM (需要安装 litellm)
+GOOGLE_GENAI_MODEL=openai/gpt-4o
+
+# Anthropic via LiteLLM
+GOOGLE_GENAI_MODEL=anthropic/claude-3-sonnet
+
+# 测试模式 (MockLlm)
+GOOGLE_GENAI_MODEL=mock/test
+```
+
+### 使用 LiteLLM 多模型
+
+```bash
+# 安装 litellm
+pip install litellm
+
+# 设置 API Key
+export OPENAI_API_KEY=sk-xxx
+
+# 启动服务 (使用 GPT-4)
+GOOGLE_GENAI_MODEL=openai/gpt-4o bug-sleuth serve
+```
+
+---
+
+## App Factory (应用工厂)
+
+`app_factory.py` 提供了统一的应用初始化入口，用于服务器和测试：
+
+```python
+from bug_sleuth.app_factory import create_app, AppConfig
+
+# 创建应用 (使用 root agent)
+app = create_app(AppConfig(
+    agent_name="bug_scene_agent",  # 或 "bug_analyze_agent"
+    skill_path="skills",
+    config_file="config.yaml"
+))
+
+# 获取 agent
+agent = app.agent
+```
+
+### 支持的 Agent
+
+| agent_name | 说明 |
+|------------|------|
+| `bug_scene_agent` | Root Agent (包含子 agent) |
+| `bug_analyze_agent` | 分析 Agent |
+| `bug_report_agent` | 报告 Agent |
+
+---
+
+## 测试 (Testing)
+
+### 测试架构
+
+```
+test/
+├── conftest.py                 # pytest 配置，设置 MockLlm
+├── integration/
+│   ├── test_bug_analyze_flow.py  # 分析 agent 测试
+│   └── test_bug_sleuth_flow.py   # 完整流程测试
+└── unit/
+    └── ...
+```
+
+### 运行测试
+
+```bash
+# 运行所有集成测试
+python -m pytest test/integration/ -v
+
+# 运行单个测试
+python -m pytest test/integration/test_bug_analyze_flow.py::test_analyze_agent_searches_logs -v
+```
+
+### MockLlm 测试模式
+
+测试使用 `MockLlm` 模拟 LLM 响应，通过 `conftest.py` 自动设置：
+
+```python
+# conftest.py 自动设置
+os.environ["GOOGLE_GENAI_MODEL"] = "mock/pytest"
+```
+
+### 编写测试
+
+```python
+from bug_sleuth.app_factory import create_app, AppConfig
+from bug_sleuth.test.test_client import TestClient
+from bug_sleuth.test.mock_llm_provider import MockLlm
+
+@pytest.mark.anyio
+async def test_agent_calls_tool(mock_external_deps):
+    # 1. 设置 Mock 行为
+    MockLlm.set_behaviors({
+        "check logs": {
+            "tool": "get_git_log_tool",
+            "args": {"limit": 5}
+        }
+    })
+    
+    # 2. 创建应用
+    app = create_app(AppConfig(agent_name="bug_analyze_agent"))
+    
+    # 3. 创建测试客户端
+    client = TestClient(agent=app.agent, app_name="test_app")
+    await client.create_new_session("user_1", "sess_1")
+    
+    # 4. 执行对话
+    responses = await client.chat("Please check logs")
+    
+    # 5. 验证
+    assert "[MockLlm]" in responses[-1]
+```
+
+### Mock 行为配置
+
+```python
+MockLlm.set_behaviors({
+    # 返回文本
+    "keyword": {"text": "Response text"},
+    
+    # 调用工具
+    "keyword": {
+        "tool": "tool_name",
+        "args": {"param": "value"}
+    }
+})
+```
