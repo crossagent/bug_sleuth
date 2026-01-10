@@ -284,8 +284,8 @@ os.environ["GOOGLE_GENAI_MODEL"] = "mock/pytest"
 
 ```python
 from bug_sleuth.app_factory import create_app, AppConfig
-from bug_sleuth.test.test_client import TestClient
-from bug_sleuth.test.mock_llm_provider import MockLlm
+from bug_sleuth.testing import AgentTestClient
+from bug_sleuth.testing import MockLlm
 
 @pytest.mark.anyio
 async def test_agent_calls_tool(mock_external_deps):
@@ -301,7 +301,7 @@ async def test_agent_calls_tool(mock_external_deps):
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
     
     # 3. 创建测试客户端
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_1")
     
     # 4. 执行对话

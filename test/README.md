@@ -99,7 +99,7 @@ MockLlm.set_behaviors({
 封装 ADK Runner 的测试客户端：
 
 ```python
-from bug_sleuth.testing import TestClient
+from bug_sleuth.testing import AgentTestClient
 
 client = TestClient(agent=app.agent, app_name="test_app")
 await client.create_new_session("user_1", "sess_1")

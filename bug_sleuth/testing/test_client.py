@@ -8,12 +8,11 @@ from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.adk.artifacts.in_memory_artifact_service import InMemoryArtifactService
 from google.adk.events.event import Event, EventActions
 
-class TestClient:
+class AgentTestClient:
     """
     A test-specific client that captures all agent events.
     adapted from AdkSimulationClient.
     """
-    __test__ = False
 
     def __init__(self, agent: LlmAgent, app_name: str = "test_app"):
         if not agent:

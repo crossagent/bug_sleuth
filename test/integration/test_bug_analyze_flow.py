@@ -9,7 +9,7 @@ import pytest
 from unittest.mock import patch
 
 from bug_sleuth.app_factory import create_app, AppConfig
-from bug_sleuth.testing import TestClient, MockLlm
+from bug_sleuth.testing import AgentTestClient, MockLlm
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def mock_external_deps():
 async def analyze_client(mock_external_deps):
     """Create a test client for bug_analyze_agent."""
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     return client
 
 
@@ -62,7 +62,7 @@ async def test_tool_git_log(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_git_log", initial_state={})
     responses = await client.chat("Please check the git logs for me.")
     
@@ -81,7 +81,7 @@ async def test_tool_git_diff(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_git_diff", initial_state={})
     responses = await client.chat("Please show diff for HEAD commit.")
     
@@ -100,7 +100,7 @@ async def test_tool_git_blame(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_git_blame", initial_state={})
     responses = await client.chat("Who wrote this? Please blame lines 1-10.")
     
@@ -123,7 +123,7 @@ async def test_tool_svn_log(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_svn_log", initial_state={})
     responses = await client.chat("Check svn log for recent changes.")
     
@@ -142,7 +142,7 @@ async def test_tool_svn_diff(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_svn_diff", initial_state={})
     responses = await client.chat("Show svn diff for revision 100.")
     
@@ -165,7 +165,7 @@ async def test_tool_read_file(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_read_file", initial_state={})
     responses = await client.chat("Please read file lines 1-50.")
     
@@ -188,7 +188,7 @@ async def test_tool_search_code(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_search_code", initial_state={})
     responses = await client.chat("Search code for InitPlayer function.")
     
@@ -207,7 +207,7 @@ async def test_tool_search_res(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_search_res", initial_state={})
     responses = await client.chat("Search asset files for Hero prefab.")
     
@@ -230,7 +230,7 @@ async def test_tool_update_plan(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_update_plan", initial_state={})
     responses = await client.chat("Update plan with new tasks.")
     
@@ -253,7 +253,7 @@ async def test_tool_time_convert(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_time_convert", initial_state={})
     responses = await client.chat("Convert time 2026-01-10 14:00:00 to timestamp.")
     
@@ -272,7 +272,7 @@ async def test_tool_run_bash(mock_external_deps):
     })
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_run_bash", initial_state={})
     responses = await client.chat("Run command: dir")
     

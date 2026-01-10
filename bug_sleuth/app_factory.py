@@ -9,7 +9,7 @@ Usage:
     # Testing with Mock LLM (set via environment variable)
     # GOOGLE_GENAI_MODEL=mock/test python -m pytest
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
-    client = TestClient(agent=app.agent)
+    client = AgentTestClient(agent=app.agent)
 
 Model selection is now handled via GOOGLE_GENAI_MODEL environment variable:
 - "gemini-2.0-flash" (default) -> Native Gemini

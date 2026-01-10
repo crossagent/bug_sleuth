@@ -13,7 +13,7 @@ import logging
 from unittest.mock import patch
 
 from bug_sleuth.app_factory import create_app, AppConfig
-from bug_sleuth.testing import TestClient, MockLlm
+from bug_sleuth.testing import AgentTestClient, MockLlm
 from bug_sleuth.shared_libraries.state_keys import StateKeys
 
 logging.basicConfig(level=logging.INFO)
@@ -52,7 +52,7 @@ async def test_root_agent_refine_bug_state_tool(mock_external_deps):
     
     app = create_app(AppConfig(agent_name="bug_scene_agent"))
     
-    client = TestClient(agent=app.agent, app_name="bug_sleuth_app")
+    client = AgentTestClient(agent=app.agent, app_name="bug_sleuth_app")
     await client.create_new_session("user_test", "sess_001")
     
     responses = await client.chat("The logo is overlapping text on the login screen, Android, Branch A.")
@@ -80,7 +80,7 @@ async def test_root_agent_question_answer_flow(mock_external_deps):
     
     app = create_app(AppConfig(agent_name="bug_scene_agent"))
     
-    client = TestClient(agent=app.agent, app_name="bug_sleuth_app")
+    client = AgentTestClient(agent=app.agent, app_name="bug_sleuth_app")
     await client.create_new_session("user_test", "sess_002")
     
     resp1 = await client.chat("It's broken")
@@ -111,7 +111,7 @@ async def test_root_agent_dispatch_to_analyze_agent(mock_external_deps):
     
     app = create_app(AppConfig(agent_name="bug_scene_agent"))
     
-    client = TestClient(agent=app.agent, app_name="bug_sleuth_app")
+    client = AgentTestClient(agent=app.agent, app_name="bug_sleuth_app")
     await client.create_new_session("user_test", "sess_complex")
     
     responses = await client.chat("Game crashes sometimes when opening bag, PC.")
@@ -133,7 +133,7 @@ async def test_analyze_agent_git_log_tool(mock_external_deps):
     
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
     
-    client = TestClient(agent=app.agent, app_name="test_app")
+    client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_1", initial_state={})
     
     responses = await client.chat("Please check the git logs for me.")
