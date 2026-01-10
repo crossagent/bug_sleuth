@@ -93,7 +93,7 @@ async def test_tool_git_diff(mock_external_deps):
 async def test_tool_git_blame(mock_external_deps):
     """Verifies that the agent calls 'get_git_blame_tool' for blame info."""
     MockLlm.set_behaviors({
-        "blame": {
+        "ownership analysis": {
             "tool": "get_git_blame_tool",
             "args": {"path": "d:/MyProject/bug_sleuth/README.md", "start_line": 1, "end_line": 10}
         }
@@ -102,7 +102,7 @@ async def test_tool_git_blame(mock_external_deps):
     app = create_app(AppConfig(agent_name="bug_analyze_agent"))
     client = AgentTestClient(agent=app.agent, app_name="test_app")
     await client.create_new_session("user_1", "sess_git_blame", initial_state={})
-    responses = await client.chat("Who wrote this? Please blame lines 1-10.")
+    responses = await client.chat("Who wrote this? Please do ownership analysis on lines 1-10.")
     
     assert len(responses) > 0
     assert "[MockLlm]" in responses[-1]
