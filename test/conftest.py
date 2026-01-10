@@ -1,6 +1,18 @@
+import os
 import pytest
 from google.adk.models import LLMRegistry
 from bug_sleuth.test.mock_llm_provider import MockLlm
+
+
+def pytest_configure(config):
+    """
+    Set up environment for testing BEFORE any imports happen.
+    This ensures constants.py picks up the mock model.
+    """
+    # Set mock model for all tests by default
+    os.environ["GOOGLE_GENAI_MODEL"] = "mock/pytest"
+    print(">>> [conftest] Set GOOGLE_GENAI_MODEL=mock/pytest")
+
 
 @pytest.fixture(scope="session", autouse=True)
 def register_mock_llm():
@@ -11,6 +23,7 @@ def register_mock_llm():
     print(">>> [conftest] Registering MockLlm...")
     LLMRegistry.register(MockLlm)
     
+
 @pytest.fixture(autouse=True)
 def reset_mock_behaviors():
     """

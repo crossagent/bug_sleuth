@@ -6,13 +6,16 @@ Usage:
     app = create_app(AppConfig(skill_path="skills", config_file="config.yaml"))
     root_agent = app.agent
     
-    # Testing analyze agent with Mock LLM
-    app = create_app(AppConfig(agent_name="bug_analyze_agent", model_override="mock/test"))
+    # Testing with Mock LLM (set via environment variable)
+    # GOOGLE_GENAI_MODEL=mock/test python -m pytest
+    app = create_app(AppConfig(agent_name="bug_analyze_agent"))
     client = TestClient(agent=app.agent)
-    
-    # Testing root agent (bug_scene_agent)
-    app = create_app(AppConfig(agent_name="bug_scene_agent", model_override="mock/test"))
-    client = TestClient(agent=app.agent)
+
+Model selection is now handled via GOOGLE_GENAI_MODEL environment variable:
+- "gemini-2.0-flash" (default) -> Native Gemini
+- "mock/xxx" -> MockLlm for testing
+- "openai/gpt-4o" -> LiteLLM for OpenAI
+- "anthropic/claude-3" -> LiteLLM for Anthropic
 """
 
 import os
@@ -36,9 +39,6 @@ class AppConfig:
     # Paths
     skill_path: Optional[str] = None
     config_file: Optional[str] = None
-    
-    # Testing
-    model_override: Optional[str] = None  # e.g. "mock/test" to use MockLlm
     
     # Environment overrides (alternative to env vars)
     env_overrides: dict = field(default_factory=dict)
@@ -79,7 +79,10 @@ def create_app(config: AppConfig = None) -> BugSleuthApp:
     1. Applies environment overrides
     2. Loads skills into global registries
     3. Loads configuration file
-    4. Creates and configures the agent
+    4. Imports and returns the selected agent
+    
+    Note: Model selection is now handled via GOOGLE_GENAI_MODEL environment variable
+    in constants.py, not via app_factory parameters.
     
     Args:
         config: Application configuration. If None, uses environment defaults.
@@ -101,16 +104,12 @@ def create_app(config: AppConfig = None) -> BugSleuthApp:
     # 3. Load Skills (before agent import so registries are populated)
     skill_stats = _load_skills(config.skill_path)
     
-    # 4. Ensure MockLlm is registered if using mock model
-    if config.model_override and config.model_override.startswith("mock/"):
-        _ensure_mock_llm_registered()
-    
-    # 5. Import and configure agents based on selection
+    # 4. Import agents based on selection
+    # Note: Model is determined by GOOGLE_GENAI_MODEL env var at constants.py import time
     agents_dict = {}
     selected_agent = None
     
     if config.agent_name == "bug_scene_agent":
-        # Import root agent (which includes sub-agents)
         from bug_sleuth.bug_scene_app.agent import bug_scene_agent
         from bug_sleuth.bug_scene_app.bug_analyze_agent.agent import bug_analyze_agent
         from bug_sleuth.bug_scene_app.bug_report_agent.agent import bug_report_agent
@@ -121,31 +120,18 @@ def create_app(config: AppConfig = None) -> BugSleuthApp:
             "bug_analyze_agent": bug_analyze_agent,
             "bug_report_agent": bug_report_agent,
         }
-        
-        # Override model for all agents if testing
-        if config.model_override:
-            logger.info(f"Overriding model for all agents to: {config.model_override}")
-            bug_scene_agent.model = config.model_override
-            bug_analyze_agent.model = config.model_override
-            bug_report_agent.model = config.model_override
             
     elif config.agent_name == "bug_analyze_agent":
         from bug_sleuth.bug_scene_app.bug_analyze_agent.agent import bug_analyze_agent
         selected_agent = bug_analyze_agent
         agents_dict = {"bug_analyze_agent": bug_analyze_agent}
-        
-        if config.model_override:
-            logger.info(f"Overriding model to: {config.model_override}")
-            bug_analyze_agent.model = config.model_override
             
     elif config.agent_name == "bug_report_agent":
         from bug_sleuth.bug_scene_app.bug_report_agent.agent import bug_report_agent
         selected_agent = bug_report_agent
         agents_dict = {"bug_report_agent": bug_report_agent}
-        
-        if config.model_override:
-            logger.info(f"Overriding model to: {config.model_override}")
-            bug_report_agent.model = config.model_override
+    
+    logger.info(f"App created with agent: {config.agent_name}")
     
     return BugSleuthApp(
         agent=selected_agent,
@@ -182,12 +168,3 @@ def _load_skills(skill_path: Optional[str]) -> dict:
         "report": len(report_skill_registry._tools),
         "analyze": len(analyze_skill_registry._tools),
     }
-
-
-def _ensure_mock_llm_registered():
-    """Ensure MockLlm is imported and registered with ADK."""
-    try:
-        from bug_sleuth.test.mock_llm_provider import MockLlm
-        logger.debug("MockLlm registered for testing.")
-    except ImportError as e:
-        logger.warning(f"Failed to import MockLlm: {e}")
