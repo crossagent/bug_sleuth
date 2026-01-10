@@ -28,6 +28,16 @@ from google.adk.events.event import Event
 from google.adk.events.event_actions import EventActions
 from bug_sleuth.shared_libraries.state_keys import StateKeys
 from google.genai import types
+import base64
+from pydantic import BaseModel, Field
+
+class UploadRequest(BaseModel):
+    app_name: str = Field(..., alias="appName")
+    user_id: str = Field(..., alias="userId")
+    session_id: str = Field(..., alias="sessionId")
+    filename: str
+    file_data: str = Field(..., alias="fileData", description="Base64 encoded file content") # keys: data, base64
+    mime_type: str = Field("application/octet-stream", alias="mimeType")
 
 # Configure Logging
 logger = logging.getLogger("bug_sleuth.server")
@@ -277,37 +287,74 @@ try:
 
     @app.post("/upload")
     async def upload_file(
-        file: UploadFile = File(...),
-        app_name: str = Form(...),
-        user_id: str = Form(...),
-        session_id: str = Form(...)
+        request: UploadRequest = Body(...)
     ):
-        """Uploads a file and logs it as an event in the session."""
-        logger.info(f"Uploading file {file.filename} for session {session_id}")
+        """Uploads a base64 encoded file and logs it as an event in the session, using ArtifactService."""
+        logger.info(f"Uploading file {request.filename} for session {request.session_id}")
         
-        # 1. Save artifact
-        file_path = Path(ARTIFACTS_DIR) / file.filename
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        try:
+            # 1. Decode Base64 content
+            # Handle potential header "data:image/png;base64," if present
+            if "," in request.file_data:
+                header, encoded = request.file_data.split(",", 1)
+            else:
+                encoded = request.file_data
+                
+            content = base64.b64decode(encoded)
             
-        # 2. Append Event
-        session = await session_service.get_session(app_name=app_name, user_id=user_id, session_id=session_id)
+            # 2. Prepare Artifact Part
+            artifact_part = types.Part(
+                inline_data=types.Blob(
+                    data=content,
+                    mime_type=request.mime_type
+                )
+            )
+            
+            # 3. Save via Artifact Service
+            version = await artifact_service.save_artifact(
+                app_name=request.app_name,
+                user_id=request.user_id,
+                session_id=request.session_id,
+                filename=request.filename,
+                artifact=artifact_part
+            )
+            
+            # 4. Retrieve Metadata to get Canonical URI
+            artifact_version = await artifact_service.get_artifact_version(
+                app_name=request.app_name,
+                user_id=request.user_id,
+                session_id=request.session_id,
+                filename=request.filename,
+                version=version
+            )
+            
+            file_path_uri = artifact_version.canonical_uri if artifact_version else "unknown"
+            
+        except Exception as e:
+            logger.error(f"Failed to save artifact: {e}")
+            raise HTTPException(status_code=500, detail=f"Artifact save failed: {e}")
+
+        # 5. Append Event
+        session = await session_service.get_session(app_name=request.app_name, user_id=request.user_id, session_id=request.session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Construct Event Parts
+        event_parts = [types.Part(text=f"Uploaded file: {request.filename}")]
             
         event = Event(
             id=str(uuid.uuid4()),
             author="system", 
             content=types.Content(
                 role="user",
-                parts=[types.Part(text=f"Uploaded file: {file.filename}")]
+                parts=event_parts
             ),
             timestamp=time.time(),
             turn_complete=True
         )
         await session_service.append_event(session, event)
         
-        return {"filename": file.filename, "path": str(file_path)}
+        return {"filename": request.filename, "path": file_path_uri}
 
     # 4. Register UI Endpoint (Restoring original UI)
     @app.get("/reporter", response_class=HTMLResponse)
